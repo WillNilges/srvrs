@@ -1,9 +1,14 @@
 // Example from https://github.com/notify-rs/notify/blob/0f5fcda7a0f02d19eb0660a7fe65303d74550cfc/examples/monitor_raw.rs
 
+// To watch directories
 use notify::{RecommendedWatcher, RecursiveMode, Watcher, Config};
 use std::path::Path;
 
+// To know what directories to watch
 use clap::Parser;
+
+// To run commands based on said directories
+use std::process::Command;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -20,12 +25,12 @@ struct Args {
 fn main() {
     let args = Args::parse();
     println!("watching {}", args.path);
-    if let Err(e) = watch(args.path) {
+    if let Err(e) = watch(args.path, args.command) {
         println!("error: {:?}", e)
     }
 }
 
-fn watch<P: AsRef<Path>>(path: P) -> notify::Result<()> {
+fn watch<P: AsRef<Path>>(path: P, command: String) -> notify::Result<()> {
     let (tx, rx) = std::sync::mpsc::channel();
 
     // Automatically select the best implementation for your platform.
@@ -38,10 +43,30 @@ fn watch<P: AsRef<Path>>(path: P) -> notify::Result<()> {
 
     for res in rx {
         match res {
-            Ok(event) => println!("changed: {:?}", event),
+            Ok(event) => {
+                //println!("changed: {:?}", event);
+                match event.kind {
+                    notify::EventKind::Create(notify::event::CreateKind::File) => {
+                        respond(&command);
+                    },
+                    _ => {
+                    }
+                }
+            },
             Err(e) => println!("watch error: {:?}", e),
         }
     }
 
     Ok(())
+}
+
+fn respond(command: &String) {
+    let output = Command::new("sh")
+                .arg("-c")
+                .arg(command)
+                .output()
+                .expect("failed to execute process");
+
+    let hello = output.stdout;
+    println!("{}", String::from_utf8_lossy(&hello));
 }
