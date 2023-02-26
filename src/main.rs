@@ -2,7 +2,7 @@
 
 // To watch directories
 use notify::{RecommendedWatcher, RecursiveMode, Watcher, Config};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 // To know what directories to watch
 use clap::Parser;
@@ -47,7 +47,9 @@ fn watch<P: AsRef<Path>>(path: P, command: String) -> notify::Result<()> {
                 //println!("changed: {:?}", event);
                 match event.kind {
                     notify::EventKind::Create(notify::event::CreateKind::File) => {
-                        respond(&command);
+                        // TODO: Make this app work with multiple paths at once
+                        println!("{:?}", event.paths);
+                        respond(&command, event.paths);
                     },
                     _ => {
                     }
@@ -56,14 +58,14 @@ fn watch<P: AsRef<Path>>(path: P, command: String) -> notify::Result<()> {
             Err(e) => println!("watch error: {:?}", e),
         }
     }
-
     Ok(())
 }
 
-fn respond(command: &String) {
+fn respond(command: &String, files: Vec<PathBuf>) {
+    let built_command = command.to_owned() + &files[0].display().to_string();
     let output = Command::new("sh")
                 .arg("-c")
-                .arg(command)
+                .arg(built_command)
                 .output()
                 .expect("failed to execute process");
 
