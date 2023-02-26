@@ -3,12 +3,24 @@
 use notify::{RecommendedWatcher, RecursiveMode, Watcher, Config};
 use std::path::Path;
 
+use clap::Parser;
+
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+   /// Path of dir to watch
+   #[arg(short, long)]
+   path: String,
+
+   /// Command to run with path as argument 
+   #[arg(short, long)]
+   command: String,
+}
+
 fn main() {
-    let path = std::env::args()
-        .nth(1)
-        .expect("Argument 1 needs to be a path");
-    println!("watching {}", path);
-    if let Err(e) = watch(path) {
+    let args = Args::parse();
+    println!("watching {}", args.path);
+    if let Err(e) = watch(args.path) {
         println!("error: {:?}", e)
     }
 }
