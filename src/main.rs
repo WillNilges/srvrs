@@ -2,7 +2,7 @@
 
 // To watch directories
 use notify::{RecommendedWatcher, RecursiveMode, Watcher, Config};
-use std::path::{Path, PathBuf};
+use std::{path::{Path, PathBuf}, fs};
 
 // To know what directories to watch
 use clap::Parser;
@@ -15,7 +15,7 @@ use std::process::Command;
 struct Args {
    /// Path of dir to watch
    #[arg(short, long)]
-   path: String,
+   home_path: String,
 
    /// Command to run with path as argument 
    #[arg(short, long)]
@@ -24,8 +24,13 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    println!("watching {}", args.path);
-    if let Err(e) = watch(args.path, args.command) {
+    /* FIXME: This could be really dangerous.
+    println!("Clearing {}", &args.home_path);
+    fs::remove_dir_all(&args.home_path);
+    fs::create_dir(&args.home_path);
+    */
+    println!("watching {}", args.home_path);
+    if let Err(e) = watch(args.home_path, args.command) {
         println!("error: {:?}", e)
     }
 }
@@ -39,7 +44,7 @@ fn watch<P: AsRef<Path>>(path: P, command: String) -> notify::Result<()> {
 
     // Add a path to be watched. All files and directories at that path and
     // below will be monitored for changes.
-    watcher.watch(path.as_ref(), RecursiveMode::Recursive)?;
+    watcher.watch(path.as_ref(), RecursiveMode::NonRecursive)?;
 
     for res in rx {
         match res {
@@ -62,6 +67,7 @@ fn watch<P: AsRef<Path>>(path: P, command: String) -> notify::Result<()> {
 }
 
 fn respond(command: &String, files: Vec<PathBuf>) {
+    //fs::create_dir(home_path + "work");
     let built_command = command.to_owned() + &files[0].display().to_string();
     let output = Command::new("sh")
                 .arg("-c")
