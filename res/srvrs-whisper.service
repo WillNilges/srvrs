@@ -1,0 +1,9 @@
+[Unit]
+Description=SRVRS (@wilnil). A platform for file in, file out operations. Runs whisper auto-captions
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/srvrs -p /var/srvrs/whisper -c '/var/srvrs/scripts/run_whisper_container.sh -p' -w /var/srvrs/work -d /scratch
+
+[Install]
+WantedBy=default.target
