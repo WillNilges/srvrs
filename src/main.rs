@@ -2,8 +2,9 @@
 
 // To watch directories
 use notify::{RecommendedWatcher, RecursiveMode, Watcher, Config};
-use std::{path::{Path, PathBuf}, fs::{self, copy}};
+use std::{path::{Path, PathBuf}, fs::{self}};
 use file_owner::PathExt;
+use chrono;
 
 // To know what directories to watch
 use clap::Parser;
@@ -118,4 +119,11 @@ fn respond(command: &String, work_path: &String, files: Vec<PathBuf>) {
 
     let hello = output.stdout;
     println!("{}", String::from_utf8_lossy(&hello));
+
+    // When finished, move the work directory into the user's scratchdir.
+    // TODO: Create it if it doesn't exist.
+    println!("Moving results to scratch!");
+    let home = "/scratch";
+    fs::rename(new_user_work_dir, format!("{}/{}/{}_{}_{}", home, owner, "srvrs", chrono::offset::Local::now(), first_file_name_prefix))
+        .unwrap_or_else(|e| panic!("Error copying file: {}", e));
 }
