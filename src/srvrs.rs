@@ -3,6 +3,7 @@ use notify::{RecommendedWatcher, RecursiveMode, Watcher, Config};
 use std::{path::PathBuf, fs};
 use file_owner::PathExt;
 use chrono;
+use anyhow::{anyhow, Result};
 
 // To run commands based on said directories
 use std::process::Command;
@@ -10,12 +11,13 @@ use std::process::Command;
 pub struct Srvrs {
     pub primary_path: String,
     pub work_path: String,
+    pub destination_base_path: String,
     pub command: String,
 }
 
 impl Srvrs {
     pub fn launch(&self) {
-        println!("watching {}", self.primary_path);
+        println!("Watching {}. Will run `{}` when a file is added.", self.primary_path, self.command);
         if let Err(e) = self.watch() {
             println!("error: {:?}", e)
         }  
@@ -41,7 +43,7 @@ impl Srvrs {
                             println!("changed: {:?}", event);
                             // TODO: Make this app work with multiple paths at once
                             //println!("{:?}", event.paths); // Debug for seeing event info
-                            self.respond(event.paths);
+                            match self.respond(event.paths) {Ok(()) => {}, Err(e) => println!("{}",e),};
                         },
                         _ => {
                         }
@@ -53,16 +55,25 @@ impl Srvrs {
         Ok(())
     }
 
-    fn respond(&self, files: Vec<PathBuf>) {
+    fn respond(&self, files: Vec<PathBuf>) -> Result<()> {
         // Pick the first file created out of there.
         let first_file = files[0].display().to_string();
-        let first_file_name = files[0].file_name().unwrap().to_string_lossy();
-        let first_file_name_prefix = files[0].file_stem().unwrap().to_string_lossy(); // TODO: Wait for
+        let first_file_name = match files[0].file_name() {
+            Some(name) => name.to_string_lossy(),
+            None => return Err(anyhow!("Invalid file name")),
+        };
+
+        let first_file_name_prefix = match files[0].file_stem() {
+            Some(name) => name.to_string_lossy(),
+            None => return Err(anyhow!("Invalid file stem")),
+        }; // TODO: Wait for
         // prefix to get out of nightly so we can use that instead of file_stem()
         
         // Get the owner of the path so we can put our output in their homedir.
-        let o = first_file.owner().unwrap();
-        let owner = o.name().unwrap().unwrap();
+        let owner = match first_file.owner()?.name()? {
+            Some(name) => name,
+            None => return Err(anyhow!("Could not find an owner for this file!")),
+        };
         
         println!("{} Just uploaded a file at {}!", owner, first_file);
 
@@ -79,13 +90,13 @@ impl Srvrs {
         // were given on it.
         let new_user_work_dir = format!("{}/{}_{}", self.work_path, owner, first_file_name_prefix);
         println!("Creating {} for new user work.", new_user_work_dir);
-        fs::create_dir(&new_user_work_dir)
-            .unwrap_or_else(|e| panic!("Error creating dir: {}", e));
+        fs::create_dir(&new_user_work_dir)?;
+//            .unwrap_or_else(|e| Err(format!("Error creating dir: {}", e)));
 
         // Move file into temp work directory
         let new_user_file_path = format!("{}/{}", new_user_work_dir, first_file_name);
-        fs::rename(first_file, &new_user_file_path)
-            .unwrap_or_else(|e| panic!("Error copying file: {}", e));
+        fs::rename(first_file, &new_user_file_path)?;
+        //    .unwrap_or_else(|e| Err(format!("Error copying file: {}", e)));
 
         println!("Running command!");
 
@@ -93,17 +104,17 @@ impl Srvrs {
         let output = Command::new("sh")
                     .arg("-c")
                     .arg(built_command)
-                    .output()
-                    .expect("failed to execute process");
+                    .output()?;
+                    //.expect("failed to execute process");
 
         let hello = output.stdout;
         println!("{}", String::from_utf8_lossy(&hello));
 
         // When finished, move the work directory into the user's scratchdir.
         // TODO: Create it if it doesn't exist.
-        println!("Moving results to scratch!");
-        let home = "/scratch";
-        fs::rename(new_user_work_dir, format!("{}/{}/{}_{}_{}", home, owner, "srvrs", chrono::offset::Local::now().timestamp(), first_file_name_prefix))
+        println!("Moving results to {}!", self.destination_base_path);
+        fs::rename(new_user_work_dir, format!("{}/{}/{}_{}_{}", self.destination_base_path, owner, "srvrs", chrono::offset::Local::now().timestamp(), first_file_name_prefix))
             .unwrap_or_else(|e| panic!("Error copying file: {}", e));
+        Ok(())
     }
 }

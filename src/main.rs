@@ -9,15 +9,19 @@ pub mod srvrs;
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Path of dir to watch
-    #[arg(short, long)]
+    #[arg(short, long, required=true)]
     primary_path: String,
 
     /// Path where we do our work
-    #[arg(short, long)]
+    #[arg(short, long, required=true)]
     work_path: String,
 
+    /// Path where we put the finished product 
+    #[arg(short, long, required=true)]
+    destination_base_path: String,
+
     /// Command to run with path as argument 
-    #[arg(short, long)]
+    #[arg(short, long, required=true)]
     command: String,
 }
 
@@ -31,6 +35,7 @@ fn main() {
     let service = srvrs::Srvrs { 
         primary_path: args.primary_path,
         work_path: args.work_path,
+        destination_base_path: args.destination_base_path,
         command: args.command
     };
     service.launch();
