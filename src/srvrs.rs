@@ -4,7 +4,7 @@ use std::{path::PathBuf, fs};
 use file_owner::PathExt;
 use chrono;
 use anyhow::{anyhow, Result};
-use log::{info, error};
+use log::{info, error, LevelFilter};
 
 // To run commands based on said directories
 use std::process::Command;
@@ -18,6 +18,9 @@ pub struct Srvrs {
 
 impl Srvrs {
     pub fn launch(&self) {
+        
+        systemd_journal_logger::init().unwrap();
+        log::set_max_level(LevelFilter::Info);
         info!("Watching {}. Will run `{}` when a file is added.", self.primary_path, self.command);
         if let Err(e) = self.watch() {
             error!("error: {:?}", e)
@@ -99,9 +102,8 @@ impl Srvrs {
         fs::rename(first_file, &new_user_file_path)?;
         //    .unwrap_or_else(|e| Err(format!("Error copying file: {}", e)));
 
-        info!("Running command!");
-
-        let built_command = self.command.to_owned() + &new_user_file_path;
+        let built_command = format!("{} {}", self.command.to_owned(), &new_user_file_path);
+        info!("Running command: {}", built_command);
         let output = Command::new("sh")
                     .arg("-c")
                     .arg(built_command)

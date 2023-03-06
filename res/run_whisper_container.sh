@@ -17,4 +17,4 @@ while getopts ":h:dp:" option; do
     esac
 done
 if [[ -z "$WC_PATH" ]]; then help_me; exit 1; fi
-podman run --rm $WC_BACKGROUND --hooks-dir=/usr/share/containers/oci/hooks.d/ --security-opt=label=disable -v $(dirname $WC_PATH):/workdir:Z -e WHISPER_VIDEO_PATH=$(basename $WC_PATH) --name="$(whoami)_$(basename $WC_PATH)" webcaptions 
+podman run --rm $WC_BACKGROUND --hooks-dir=/usr/share/containers/oci/hooks.d/ --security-opt=label=disable -v $(dirname $WC_PATH):/workdir:Z -e WHISPER_VIDEO_PATH=$(basename $WC_PATH) --name="$(whoami)_$(basename $WC_PATH)" "docker.io/willnilges/webcaptions:v1.0"

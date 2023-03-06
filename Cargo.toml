@@ -12,3 +12,4 @@ clap = { version = "4.1.6", features = ["derive"] }
 file-owner = "0.1.1"
 log = "0.4.17"
 notify = "5.1.0"
+systemd-journal-logger = "0.7.0"
