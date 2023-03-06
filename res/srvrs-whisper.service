@@ -1,5 +1,5 @@
 [Unit]
-Description=SRVRS (@wilnil). A platform for file in, file out operations. Runs whisper auto-captions
+Description=SRVRS. A platform for file in, file out operations. Runs whisper auto-captions.
 
 [Service]
 Type=simple
