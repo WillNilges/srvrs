@@ -4,6 +4,7 @@ use std::{path::PathBuf, fs};
 use file_owner::PathExt;
 use chrono;
 use anyhow::{anyhow, Result};
+use log::{info, error};
 
 // To run commands based on said directories
 use std::process::Command;
@@ -17,9 +18,9 @@ pub struct Srvrs {
 
 impl Srvrs {
     pub fn launch(&self) {
-        println!("Watching {}. Will run `{}` when a file is added.", self.primary_path, self.command);
+        info!("Watching {}. Will run `{}` when a file is added.", self.primary_path, self.command);
         if let Err(e) = self.watch() {
-            println!("error: {:?}", e)
+            error!("error: {:?}", e)
         }  
     }
 
@@ -40,7 +41,7 @@ impl Srvrs {
                     //println!("changed: {:?}", event);
                     match event.kind {
                         notify::EventKind::Create(notify::event::CreateKind::File) => {
-                            println!("changed: {:?}", event);
+                            info!("changed: {:?}", event);
                             // TODO: Make this app work with multiple paths at once
                             //println!("{:?}", event.paths); // Debug for seeing event info
                             match self.respond(event.paths) {Ok(()) => {}, Err(e) => println!("{}",e),};
@@ -49,7 +50,7 @@ impl Srvrs {
                         }
                     }
                 },
-                Err(e) => println!("watch error: {:?}", e),
+                Err(e) => error!("watch error: {:?}", e),
             }
         }
         Ok(())
@@ -75,7 +76,7 @@ impl Srvrs {
             None => return Err(anyhow!("Could not find an owner for this file!")),
         };
         
-        println!("{} Just uploaded a file at {}!", owner, first_file);
+        info!("{} Just uploaded a file at {}!", owner, first_file);
 
         // TODO: Check if it's a video/audio file
         
@@ -89,7 +90,7 @@ impl Srvrs {
         // Create temp work directory. We'll put the file here, then run the command we
         // were given on it.
         let new_user_work_dir = format!("{}/{}_{}", self.work_path, owner, first_file_name_prefix);
-        println!("Creating {} for new user work.", new_user_work_dir);
+        info!("Creating {} for new user work.", new_user_work_dir);
         fs::create_dir(&new_user_work_dir)?;
 //            .unwrap_or_else(|e| Err(format!("Error creating dir: {}", e)));
 
@@ -98,7 +99,7 @@ impl Srvrs {
         fs::rename(first_file, &new_user_file_path)?;
         //    .unwrap_or_else(|e| Err(format!("Error copying file: {}", e)));
 
-        println!("Running command!");
+        info!("Running command!");
 
         let built_command = self.command.to_owned() + &new_user_file_path;
         let output = Command::new("sh")
@@ -108,11 +109,11 @@ impl Srvrs {
                     //.expect("failed to execute process");
 
         let hello = output.stdout;
-        println!("{}", String::from_utf8_lossy(&hello));
+        info!("{}", String::from_utf8_lossy(&hello));
 
         // When finished, move the work directory into the user's scratchdir.
         // TODO: Create it if it doesn't exist.
-        println!("Moving results to {}!", self.destination_base_path);
+        info!("Moving results to {}!", self.destination_base_path);
         fs::rename(new_user_work_dir, format!("{}/{}/{}_{}_{}", self.destination_base_path, owner, "srvrs", chrono::offset::Local::now().timestamp(), first_file_name_prefix))
             .unwrap_or_else(|e| panic!("Error copying file: {}", e));
         Ok(())

@@ -544,6 +544,7 @@ dependencies = [
  "chrono",
  "clap",
  "file-owner",
+ "log",
  "notify",
 ]
 
