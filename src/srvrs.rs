@@ -18,7 +18,6 @@ pub struct Srvrs {
 
 impl Srvrs {
     pub fn launch(&self) {
-        
         systemd_journal_logger::init().unwrap();
         log::set_max_level(LevelFilter::Info);
         info!("Watching {}. Will run `{}` when a file is added.", self.primary_path, self.command);
@@ -41,12 +40,16 @@ impl Srvrs {
         for res in rx {
             match res {
                 Ok(event) => {
-                    //println!("changed: {:?}", event);
                     match event.kind {
-                        notify::EventKind::Create(notify::event::CreateKind::File) => {
+                        // Only take action after the file is finished writing.
+                        notify::EventKind::Access(
+                            notify::event::AccessKind::Close(
+                                notify::event::AccessMode::Write
+                            )
+                        ) => {
                             info!("changed: {:?}", event);
+
                             // TODO: Make this app work with multiple paths at once
-                            //println!("{:?}", event.paths); // Debug for seeing event info
                             match self.respond(event.paths) {Ok(()) => {}, Err(e) => println!("{}",e),};
                         },
                         _ => {
@@ -83,7 +86,7 @@ impl Srvrs {
 
         // TODO: Check if it's a video/audio file
         
-        // TODO: Make a temp directory in our own output directory
+        // Make a temp directory in our own output directory
         // MOVE the file over to there, then launch the command on
         // that path.
         // workpath=/var/srvrs/work/<FILE_NAME_AND_OWNER>
@@ -95,12 +98,10 @@ impl Srvrs {
         let new_user_work_dir = format!("{}/{}_{}", self.work_path, owner, first_file_name_prefix);
         info!("Creating {} for new user work.", new_user_work_dir);
         fs::create_dir(&new_user_work_dir)?;
-//            .unwrap_or_else(|e| Err(format!("Error creating dir: {}", e)));
 
         // Move file into temp work directory
         let new_user_file_path = format!("{}/{}", new_user_work_dir, first_file_name);
         fs::rename(first_file, &new_user_file_path)?;
-        //    .unwrap_or_else(|e| Err(format!("Error copying file: {}", e)));
 
         let built_command = format!("{} {}", self.command.to_owned(), &new_user_file_path);
         info!("Running command: {}", built_command);
@@ -108,7 +109,6 @@ impl Srvrs {
                     .arg("-c")
                     .arg(built_command)
                     .output()?;
-                    //.expect("failed to execute process");
 
         let hello = output.stdout;
         info!("{}", String::from_utf8_lossy(&hello));
@@ -116,8 +116,7 @@ impl Srvrs {
         // When finished, move the work directory into the user's scratchdir.
         // TODO: Create it if it doesn't exist.
         info!("Moving results to {}!", self.destination_base_path);
-        fs::rename(new_user_work_dir, format!("{}/{}/{}_{}_{}", self.destination_base_path, owner, "srvrs", chrono::offset::Local::now().timestamp(), first_file_name_prefix))
-            .unwrap_or_else(|e| panic!("Error copying file: {}", e));
+        fs::rename(new_user_work_dir, format!("{}/{}/{}_{}_{}", self.destination_base_path, owner, "srvrs", chrono::offset::Local::now().timestamp(), first_file_name_prefix))?;
         Ok(())
     }
 }
