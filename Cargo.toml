@@ -13,3 +13,11 @@ file-owner = "0.1.1"
 log = "0.4.17"
 notify = "5.1.0"
 systemd-journal-logger = "0.7.0"
+
+[[bin]]
+name="srvrs"
+path="src/srvrs/main.rs"
+
+[[bin]]
+name="srvrs-distributor"
+path="src/distributor/main.rs"

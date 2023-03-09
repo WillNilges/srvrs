@@ -2,7 +2,6 @@
 use notify::{RecommendedWatcher, RecursiveMode, Watcher, Config};
 use std::{path::PathBuf, fs};
 use file_owner::PathExt;
-use chrono;
 use anyhow::{anyhow, Result};
 use log::{info, error, LevelFilter};
 
@@ -33,8 +32,8 @@ impl Srvrs {
         // You can also access each implementation directly e.g. INotifyWatcher.
         let mut watcher = RecommendedWatcher::new(tx, Config::default())?;
 
-        // Add a path to be watched. All files and directories at that path and
-        // below will be monitored for changes.
+        // Add a path to be watched. All files and directories at that path
+        // will be watched for changes.
         watcher.watch(self.primary_path.as_ref(), RecursiveMode::NonRecursive)?;
 
         for res in rx {
@@ -115,8 +114,10 @@ impl Srvrs {
 
         // When finished, move the work directory into the user's scratchdir.
         // TODO: Create it if it doesn't exist.
+        /*
         info!("Moving results to {}!", self.destination_base_path);
         fs::rename(new_user_work_dir, format!("{}/{}/{}_{}_{}", self.destination_base_path, owner, "srvrs", chrono::offset::Local::now().timestamp(), first_file_name_prefix))?;
+        */
         Ok(())
     }
 }
