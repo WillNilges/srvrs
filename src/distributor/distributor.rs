@@ -58,6 +58,13 @@ impl Distributor {
                             // When srvrs is finished, move the work directory into the user's scratchdir.
                             // TODO: Create it if it doesn't exist.
                             info!("Moving {}'s results to {}!", first_file_name, self.destination_base_path);
+                
+                            // Create user's scratch directory if it doesn't exist
+                            std::fs::create_dir_all(format!(
+                                "{}/{}",
+                                self.destination_base_path,
+                                first_file_name,
+                            ))?;
 
                             let file_dest = format!(
                                 "{}/{}/{}_{}",

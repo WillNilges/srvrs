@@ -16,6 +16,7 @@ cargo build --release
 sudo useradd $APP | echo "User already added"
 
 # Create the necessary directories and set permissions
+sudo rm -rf $SERVICE $SCRIPTS $WORK $DIST
 sudo mkdir -p $SERVICE $SCRIPTS $WORK $DIST
 
 # Modifications for the daemon's directories.

@@ -5,10 +5,29 @@ use file_owner::PathExt;
 use anyhow::{anyhow, Result};
 use log::{info, error, LevelFilter};
 use simple_logger::SimpleLogger;
+use std::process::{Command, Stdio};
+use std::path::Path;
+use std::io::{BufReader, BufRead};
 
+pub fn exec_stream<P: AsRef<Path>>(binary: P, args: Vec<String>) {
+    let mut cmd = Command::new(binary.as_ref())
+        .args(&args)
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
 
-// To run commands based on said directories
-use std::process::Command;
+    {
+        let stdout = cmd.stdout.as_mut().unwrap();
+        let stdout_reader = BufReader::new(stdout);
+        let stdout_lines = stdout_reader.lines();
+
+        for line in stdout_lines {
+            info!("Read: {:?}", line);
+        }
+    }
+
+    cmd.wait().unwrap();
+}
 
 pub struct Srvrs {
     pub primary_path: String,
@@ -19,7 +38,6 @@ pub struct Srvrs {
 
 impl Srvrs {
     pub fn launch(&self) {
-
         SimpleLogger::new().init().unwrap();
         //systemd_journal_logger::init().unwrap();
         log::set_max_level(LevelFilter::Info);
@@ -66,26 +84,26 @@ impl Srvrs {
     }
 
     fn respond(&self, files: Vec<PathBuf>) -> Result<()> {
-        // Pick the first file created out of there.
-        let first_file = files[0].display().to_string();
-        let first_file_name = match files[0].file_name() {
+        // Pick the first file created.
+        let file = files[0].display().to_string();
+        let file_name = match files[0].file_name() {
             Some(name) => name.to_string_lossy(),
             None => return Err(anyhow!("Invalid file name")),
         };
 
-        let first_file_name_prefix = match files[0].file_stem() {
+        let file_stem = match files[0].file_stem() {
             Some(name) => name.to_string_lossy(),
             None => return Err(anyhow!("Invalid file stem")),
         }; // TODO: Wait for
         // prefix to get out of nightly so we can use that instead of file_stem()
         
         // Get the owner of the path so we can put our output in their homedir.
-        let owner = match first_file.owner()?.name()? {
+        let owner = match file.owner()?.name()? {
             Some(name) => name,
             None => return Err(anyhow!("Could not find an owner for this file!")),
         };
         
-        info!("{} Just uploaded a file at {}!", owner, first_file);
+        info!("{} Just uploaded a file at {}!", owner, file);
 
         // TODO: Check if it's a video/audio file
         
@@ -94,37 +112,31 @@ impl Srvrs {
         // that path.
         // workpath=/var/srvrs/work/<FILE_NAME_AND_OWNER>
         // mkdir $workpath
-        // mv $first_file $workpath
+        // mv $file $workpath
         
         // Create temp work directory. We'll put the file here, then run the command we
         // were given on it.
-        let new_user_work_dir = format!("{}/{}_{}", self.work_path, owner, first_file_name_prefix);
-        info!("Creating {} for new user work.", new_user_work_dir);
-        fs::create_dir(&new_user_work_dir)?;
+        let work_dir = format!("{}/{}_{}", self.work_path, owner, file_stem);
+        info!("Creating {} for new user work.", work_dir);
+        fs::create_dir(&work_dir)?;
 
         // Move file into temp work directory
-        let new_user_file_path = format!("{}/{}", new_user_work_dir, first_file_name);
-        fs::rename(first_file, &new_user_file_path)?;
+        let work_path = format!("{}/{}", work_dir, file_name);
+        fs::rename(file, &work_path)?;
 
-        let built_command = format!("{} {}", self.command.to_owned(), &new_user_file_path);
-        info!("Running command: {}", built_command);
-        let output = Command::new("sh")
-                    .arg("-c")
-                    .arg(built_command)
-                    .output()?;
+        info!("Running command: {} -p {}", self.command.to_owned(), &work_path);
 
-        // Log results
-        info!("stdout:{}\nstderr: {}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+        exec_stream(self.command.to_owned(), vec!("-p".to_string(), work_path));
 
         // When finished, move the work directory into the distributor directory so that the
         // distributor can send it to the user. 
         // TODO: Create user's scratch directory if it doesn't exist.
         info!("Moving to distributor!");
-        fs::rename(new_user_work_dir, format!("{}/{}", self.distributor_path, owner))?;
+        fs::rename(work_dir, format!("{}/{}", self.distributor_path, owner))?;
 
         /*
         info!("Moving results to {}!", self.destination_base_path);
-        fs::rename(new_user_work_dir, format!("{}/{}/{}_{}_{}", self.destination_base_path, owner, "srvrs", chrono::offset::Local::now().timestamp(), first_file_name_prefix))?;
+        fs::rename(work_dir, format!("{}/{}/{}_{}_{}", self.destination_base_path, owner, "srvrs", chrono::offset::Local::now().timestamp(), file_stem))?;
         */
         Ok(())
     }
