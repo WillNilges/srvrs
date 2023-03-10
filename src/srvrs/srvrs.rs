@@ -4,6 +4,8 @@ use std::{path::PathBuf, fs};
 use file_owner::PathExt;
 use anyhow::{anyhow, Result};
 use log::{info, error, LevelFilter};
+use simple_logger::SimpleLogger;
+
 
 // To run commands based on said directories
 use std::process::Command;
@@ -11,13 +13,15 @@ use std::process::Command;
 pub struct Srvrs {
     pub primary_path: String,
     pub work_path: String,
-    pub destination_base_path: String,
     pub command: String,
+    pub distributor_path: String,
 }
 
 impl Srvrs {
     pub fn launch(&self) {
-        systemd_journal_logger::init().unwrap();
+
+        SimpleLogger::new().init().unwrap();
+        //systemd_journal_logger::init().unwrap();
         log::set_max_level(LevelFilter::Info);
         info!("Watching {}. Will run `{}` when a file is added.", self.primary_path, self.command);
         if let Err(e) = self.watch() {
@@ -49,7 +53,7 @@ impl Srvrs {
                             info!("changed: {:?}", event);
 
                             // TODO: Make this app work with multiple paths at once
-                            match self.respond(event.paths) {Ok(()) => {}, Err(e) => println!("{}",e),};
+                            match self.respond(event.paths) {Ok(()) => {}, Err(e) => println!("Error responding to file: {}",e),};
                         },
                         _ => {
                         }
@@ -109,11 +113,15 @@ impl Srvrs {
                     .arg(built_command)
                     .output()?;
 
-        let hello = output.stdout;
-        info!("{}", String::from_utf8_lossy(&hello));
+        // Log results
+        info!("stdout:{}\nstderr: {}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
 
-        // When finished, move the work directory into the user's scratchdir.
-        // TODO: Create it if it doesn't exist.
+        // When finished, move the work directory into the distributor directory so that the
+        // distributor can send it to the user. 
+        // TODO: Create user's scratch directory if it doesn't exist.
+        info!("Moving to distributor!");
+        fs::rename(new_user_work_dir, format!("{}/{}", self.distributor_path, owner))?;
+
         /*
         info!("Moving results to {}!", self.destination_base_path);
         fs::rename(new_user_work_dir, format!("{}/{}/{}_{}_{}", self.destination_base_path, owner, "srvrs", chrono::offset::Local::now().timestamp(), first_file_name_prefix))?;

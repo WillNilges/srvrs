@@ -1,0 +1,10 @@
+[Unit]
+Description=Distributor program for SRVRS. Moves finished work to users' homedirs. Runs as root so the actual app doesn't have to.
+
+[Service]
+Type=simple
+Group=srvrs
+ExecStart=/usr/local/sbin/srvrs-distributor -w /var/srvrs/distributor -d /scratch
+
+[Install]
+WantedBy=default.target

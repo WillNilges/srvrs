@@ -16,13 +16,13 @@ struct Args {
     #[arg(short, long, required=true)]
     work_path: String,
 
-    /// Path where we put the finished product 
-    #[arg(short, long, required=true)]
-    destination_base_path: String,
-
     /// Command to run with path as argument 
     #[arg(short, long, required=true)]
     command: String,
+
+    /// Path to distributor directory 
+    #[arg(short, long, required=true)]
+    distributor_path: String,
 }
 
 fn main() {
@@ -35,8 +35,8 @@ fn main() {
     let service = srvrs::Srvrs { 
         primary_path: args.primary_path,
         work_path: args.work_path,
-        destination_base_path: args.destination_base_path,
-        command: args.command
+        command: args.command,
+        distributor_path: args.distributor_path,
     };
     service.launch();
 }
