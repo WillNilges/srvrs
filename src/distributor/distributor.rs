@@ -43,8 +43,8 @@ impl Distributor {
 
                             info!("Got new file: {:?}", event);
                             // Pick the first file created out of there.
-                            let first_file = event.paths[0].display().to_string();
-                            let first_file_name = event.paths[0].file_name().unwrap().to_string_lossy();
+                            let file = event.paths[0].display().to_string();
+                            let file_name = event.paths[0].file_name().unwrap().to_string_lossy();
 
                             // This app will watch /var/srvrs/distributor, which the main app will
                             // move finished work to in one shot.
@@ -57,33 +57,33 @@ impl Distributor {
  
                             // When srvrs is finished, move the work directory into the user's scratchdir.
                             // TODO: Create it if it doesn't exist.
-                            info!("Moving {}'s results to {}!", first_file_name, self.destination_base_path);
+                            info!("Moving {}'s results to {}!", file_name, self.destination_base_path);
                 
                             // Create user's scratch directory if it doesn't exist
                             std::fs::create_dir_all(format!(
                                 "{}/{}",
                                 self.destination_base_path,
-                                first_file_name,
+                                file_name,
                             ))?;
 
                             let file_dest = format!(
                                 "{}/{}/{}_{}",
                                 self.destination_base_path,
-                                first_file_name,
+                                file_name,
                                 "srvrs",
                                 chrono::offset::Local::now().timestamp()
                             );
 
                             // Move the file
                             rename(
-                                first_file,
+                                file,
                                 &file_dest
                             )?;
 
                             // Change ownership of file
-                            //file_dest.set_owner(first_file_name.borrow()).unwrap();
+                            //file_dest.set_owner(file_name.borrow()).unwrap();
                             //file_dest.set_group("members").unwrap();
-                            let owner = first_file_name.to_string();
+                            let owner = file_name.to_string();
                             let my_uid: u32 = match get_user_by_name(&owner) {
                                     Some(user) => user.uid(),
                                     _ => panic!("User not found >:("),
