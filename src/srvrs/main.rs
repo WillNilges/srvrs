@@ -1,6 +1,4 @@
-// Example from https://github.com/notify-rs/notify/blob/0f5fcda7a0f02d19eb0660a7fe65303d74550cfc/examples/monitor_raw.rs
-
-// To know what directories to watch
+#![feature(path_file_prefix)]
 use clap::Parser;
 
 pub mod srvrs;

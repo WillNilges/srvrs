@@ -1,4 +1,3 @@
-// To watch directories
 use notify::{RecommendedWatcher, RecursiveMode, Watcher, Config};
 use std::{path::PathBuf, fs};
 use file_owner::PathExt;
@@ -69,8 +68,6 @@ impl Srvrs {
                             )
                         ) => {
                             info!("changed: {:?}", event);
-
-                            // TODO: Make this app work with multiple paths at once
                             match self.respond(event.paths) {Ok(()) => {}, Err(e) => println!("Error responding to file: {}",e),};
                         },
                         _ => {
@@ -91,11 +88,10 @@ impl Srvrs {
             None => return Err(anyhow!("Invalid file name")),
         };
 
-        let file_stem = match files[0].file_stem() {
+        let file_stem = match files[0].file_prefix() {
             Some(name) => name.to_string_lossy(),
             None => return Err(anyhow!("Invalid file stem")),
-        }; // TODO: Wait for
-        // prefix to get out of nightly so we can use that instead of file_stem()
+        };
         
         // Get the owner of the path so we can put our output in their homedir.
         let owner = match file.owner()?.name()? {
@@ -106,13 +102,6 @@ impl Srvrs {
         info!("{} Just uploaded a file at {}!", owner, file);
 
         // TODO: Check if it's a video/audio file
-        
-        // Make a temp directory in our own output directory
-        // MOVE the file over to there, then launch the command on
-        // that path.
-        // workpath=/var/srvrs/work/<FILE_NAME_AND_OWNER>
-        // mkdir $workpath
-        // mv $file $workpath
         
         // Create temp work directory. We'll put the file here, then run the command we
         // were given on it.
@@ -128,16 +117,11 @@ impl Srvrs {
 
         exec_stream(self.command.to_owned(), vec!("-p".to_string(), work_path));
 
-        // When finished, move the work directory into the distributor directory so that the
-        // distributor can send it to the user. 
-        // TODO: Create user's scratch directory if it doesn't exist.
+        // When finished, move the work directory into the distributor directory
+        // so that the distributor can send it to the user. 
         info!("Moving to distributor!");
         fs::rename(work_dir, format!("{}/{}", self.distributor_path, owner))?;
 
-        /*
-        info!("Moving results to {}!", self.destination_base_path);
-        fs::rename(work_dir, format!("{}/{}/{}_{}_{}", self.destination_base_path, owner, "srvrs", chrono::offset::Local::now().timestamp(), file_stem))?;
-        */
         Ok(())
     }
 }
