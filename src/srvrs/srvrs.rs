@@ -2,7 +2,7 @@ use notify::{RecommendedWatcher, RecursiveMode, Watcher, Config};
 use std::{path::PathBuf, fs};
 use file_owner::PathExt;
 use anyhow::{anyhow, Result};
-use log::{info, error, LevelFilter};
+use log::{info, warn, error, LevelFilter};
 use simple_logger::SimpleLogger;
 use std::process::{Command, Stdio};
 use std::path::Path;
@@ -21,7 +21,10 @@ pub fn exec_stream<P: AsRef<Path>>(binary: P, args: Vec<String>) {
         let stdout_lines = stdout_reader.lines();
 
         for line in stdout_lines {
-            info!("Read: {:?}", line);
+            match line {
+                Ok(l) => info!("{}", l),
+                _ => warn!("Could not read command ouput."),
+            };
         }
     }
 
@@ -68,7 +71,15 @@ impl Srvrs {
                             )
                         ) => {
                             info!("changed: {:?}", event);
-                            match self.respond(event.paths) {Ok(()) => {}, Err(e) => println!("Error responding to file: {}",e),};
+                            match self.respond(&event.paths) {
+                                Ok(()) => {},
+                                Err(e) => {
+                                    error!("Error responding to file: {}",e);
+                                    let condemned_path: String = event.paths[0].to_string_lossy().to_string();
+                                    warn!("Deleting {}", &condemned_path);
+                                    fs::remove_file(condemned_path)?;
+                                },
+                            };
                         },
                         _ => {
                         }
@@ -80,7 +91,7 @@ impl Srvrs {
         Ok(())
     }
 
-    fn respond(&self, files: Vec<PathBuf>) -> Result<()> {
+    fn respond(&self, files: &Vec<PathBuf>) -> Result<()> {
         // Pick the first file created.
         let file = files[0].display().to_string();
         let file_name = match files[0].file_name() {
@@ -88,24 +99,37 @@ impl Srvrs {
             None => return Err(anyhow!("Invalid file name")),
         };
 
-        let file_stem = match files[0].file_prefix() {
+        let file_prefix = match files[0].file_prefix() {
             Some(name) => name.to_string_lossy(),
-            None => return Err(anyhow!("Invalid file stem")),
+            None => return Err(anyhow!("Invalid file prefix")),
         };
         
         // Get the owner of the path so we can put our output in their homedir.
         let owner = match file.owner()?.name()? {
             Some(name) => name,
-            None => return Err(anyhow!("Could not find an owner for this file!")),
+            None => return Err(anyhow!("Could not find an owner for this file")),
         };
         
-        info!("{} Just uploaded a file at {}!", owner, file);
+        info!("{} uploaded {}", owner, file);
 
         // TODO: Check if it's a video/audio file
+        let kind = match infer::get_from_path(&file) {
+            Ok(file_read) => match file_read {
+                Some(file_type) => file_type,
+                _ => return Err(anyhow!("Could not infer type of {}", file)),
+            },
+            _ => return Err(anyhow!("Could not infer type of {}", file)),
+        };
+
+        match kind.matcher_type() {
+            infer::MatcherType::Audio => info!("{} is an audio file.", &file),
+            infer::MatcherType::Video => info!("{} is a video file.", &file),
+            _ => return Err(anyhow!("{} is an unsupported file type. Found {}?", &file, kind.mime_type())),
+        }
         
         // Create temp work directory. We'll put the file here, then run the command we
         // were given on it.
-        let work_dir = format!("{}/{}_{}", self.work_path, owner, file_stem);
+        let work_dir = format!("{}/{}_{}", self.work_path, owner, file_prefix);
         info!("Creating {} for new user work.", work_dir);
         fs::create_dir(&work_dir)?;
 
@@ -113,13 +137,13 @@ impl Srvrs {
         let work_path = format!("{}/{}", work_dir, file_name);
         fs::rename(file, &work_path)?;
 
-        info!("Running command: {} -p {}", self.command.to_owned(), &work_path);
+        info!("Running command: {}", self.command.to_owned());
 
         exec_stream(self.command.to_owned(), vec!("-p".to_string(), work_path));
 
         // When finished, move the work directory into the distributor directory
         // so that the distributor can send it to the user. 
-        info!("Moving to distributor!");
+        info!("Moving to distributor");
         fs::rename(work_dir, format!("{}/{}", self.distributor_path, owner))?;
 
         Ok(())

@@ -10,6 +10,7 @@ anyhow = "1.0.69"
 chrono = "0.4.23"
 clap = { version = "4.1.6", features = ["derive"] }
 file-owner = "0.1.1"
+infer = "0.13.0"
 log = "0.4.17"
 notify = "5.1.0"
 simple_logger = "4.0.0"
