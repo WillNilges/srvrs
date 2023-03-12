@@ -1,8 +1,7 @@
+use std::{os::unix::fs::chown, fs::rename};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher, Config};
 use chrono;
 use log::{info, error, LevelFilter};
-use std::os::unix::fs::chown;
-use std::fs::rename;
 use users::{get_user_by_name, get_group_by_name};
 
 pub struct Distributor {
@@ -72,6 +71,7 @@ impl Distributor {
                             )?;
 
                             // Change ownership of file
+                            // FIXME: This doesn't change all ownership!
                             let owner = file_name.to_string();
                             let my_uid: u32 = match get_user_by_name(&owner) {
                                     Some(user) => user.uid(),

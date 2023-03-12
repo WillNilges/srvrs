@@ -1,12 +1,9 @@
+use std::{path::{Path, PathBuf}, io::{BufReader, BufRead}, process::{Command, Stdio}, fs};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher, Config};
-use std::{path::PathBuf, fs};
 use file_owner::PathExt;
 use anyhow::{anyhow, Result};
 use log::{info, warn, error, LevelFilter};
 use simple_logger::SimpleLogger;
-use std::process::{Command, Stdio};
-use std::path::Path;
-use std::io::{BufReader, BufRead};
 
 pub fn exec_stream<P: AsRef<Path>>(binary: P, args: Vec<String>) {
     let mut cmd = Command::new(binary.as_ref())
