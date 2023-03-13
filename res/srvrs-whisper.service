@@ -5,7 +5,7 @@ Description=SRVRS. A platform for file in, file out operations. Runs whisper aut
 Type=simple
 User=srvrs
 Group=srvrs
-ExecStart=/usr/local/sbin/srvrs -p /var/srvrs/whisper -c '/var/srvrs/scripts/run_whisper_container.sh' -w /var/srvrs/work -d /var/srvrs/distributor
+ExecStart=/usr/local/sbin/srvrs watch -p /var/srvrs/whisper -c '/var/srvrs/scripts/run_whisper_container.sh' -w /var/srvrs/work -d /var/srvrs/distributor
 
 [Install]
 WantedBy=default.target

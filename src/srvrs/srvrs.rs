@@ -1,31 +1,49 @@
-use std::{path::{Path, PathBuf}, io::{BufReader, BufRead}, process::{Command, Stdio}, fs};
-use notify::{RecommendedWatcher, RecursiveMode, Watcher, Config};
-use file_owner::PathExt;
 use anyhow::{anyhow, Result};
-use log::{info, warn, error, LevelFilter};
+use file_owner::PathExt;
+use log::{error, info, warn, LevelFilter};
+use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
+use regex::Regex;
 use simple_logger::SimpleLogger;
+use std::{
+    fs,
+    io::{BufRead, BufReader, Write},
+    path::{Path, PathBuf},
+    process::{Command, Stdio},
+};
 
-pub fn exec_stream<P: AsRef<Path>>(binary: P, args: Vec<String>) {
+fn update_status(status: String) -> Result<()> {
+    let mut sf = fs::File::create("/var/srvrs/status")?;
+    sf.write_all(status.as_bytes())?;
+    Ok(())
+}
+
+fn exec_stream<P: AsRef<Path>>(binary: P, args: Vec<String>) -> Result<()> {
     let mut cmd = Command::new(binary.as_ref())
         .args(&args)
         .stdout(Stdio::piped())
         .spawn()
         .unwrap();
 
-    {
-        let stdout = cmd.stdout.as_mut().unwrap();
-        let stdout_reader = BufReader::new(stdout);
-        let stdout_lines = stdout_reader.lines();
+    let stdout = cmd.stdout.as_mut().unwrap();
+    let stdout_reader = BufReader::new(stdout);
+    let stdout_lines = stdout_reader.lines();
 
-        for line in stdout_lines {
-            match line {
-                Ok(l) => info!("{}", l),
-                _ => warn!("Could not read command ouput."),
-            };
-        }
+    for line in stdout_lines {
+        match line {
+            Ok(l) => {
+                info!("{}", l);
+                // [0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9](?= -->)
+                let re = Regex::new(r"([0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9])( -->)").unwrap();
+                for caps in re.captures_iter(&l) {
+                    update_status(format!("Running whisper...\n{}", caps.get(1).unwrap().as_str()))?;
+                }
+            }
+            _ => warn!("Could not read command ouput."),
+        };
     }
 
     cmd.wait().unwrap();
+    Ok(())
 }
 
 pub struct Srvrs {
@@ -40,10 +58,14 @@ impl Srvrs {
         SimpleLogger::new().init().unwrap();
         //systemd_journal_logger::init().unwrap();
         log::set_max_level(LevelFilter::Info);
-        info!("Watching {}. Will run `{}` when a file is added.", self.primary_path, self.command);
+        info!(
+            "Watching {}. Will run `{}` when a file is added.",
+            self.primary_path, self.command
+        );
+        update_status("Idle. Upload a file to /var/srvrs/whisper to get started.".to_string()).unwrap_or_else(|_| error!("Could not update status"));
         if let Err(e) = self.watch() {
             error!("error: {:?}", e)
-        }  
+        }
     }
 
     fn watch(&self) -> notify::Result<()> {
@@ -62,26 +84,27 @@ impl Srvrs {
                 Ok(event) => {
                     match event.kind {
                         // Only take action after the file is finished writing.
-                        notify::EventKind::Access(
-                            notify::event::AccessKind::Close(
-                                notify::event::AccessMode::Write
-                            )
-                        ) => {
+                        notify::EventKind::Access(notify::event::AccessKind::Close(
+                            notify::event::AccessMode::Write,
+                        )) => {
                             info!("changed: {:?}", event);
                             match self.respond(&event.paths) {
-                                Ok(()) => {},
+                                Ok(()) => {
+                                        update_status("Idle. Upload a file to /var/srvrs/whisper to get started.".to_string()).unwrap_or_else(|_| error!("Could not update status"));
+                                    }
                                 Err(e) => {
-                                    error!("Error responding to file: {}",e);
-                                    let condemned_path: String = event.paths[0].to_string_lossy().to_string();
+                                    error!("Error responding to file: {}", e);
+                                    let condemned_path: String =
+                                        event.paths[0].to_string_lossy().to_string();
                                     warn!("Deleting {}", &condemned_path);
                                     fs::remove_file(condemned_path)?;
-                                },
+                                    update_status(format!("Error responding to file: {}", e)).unwrap_or_else(|_| error!("Could not update status"));
+                                }
                             };
-                        },
-                        _ => {
                         }
+                        _ => {}
                     }
-                },
+                }
                 Err(e) => error!("watch error: {:?}", e),
             }
         }
@@ -100,13 +123,13 @@ impl Srvrs {
             Some(name) => name.to_string_lossy(),
             None => return Err(anyhow!("Invalid file prefix")),
         };
-        
+
         // Get the owner of the path so we can put our output in their homedir.
         let owner = match file.owner()?.name()? {
             Some(name) => name,
             None => return Err(anyhow!("Could not find an owner for this file")),
         };
-        
+
         info!("{} uploaded {}", owner, file);
 
         // TODO: Check if it's a video/audio file
@@ -121,9 +144,15 @@ impl Srvrs {
         match kind.matcher_type() {
             infer::MatcherType::Audio => info!("{} is an audio file.", &file),
             infer::MatcherType::Video => info!("{} is a video file.", &file),
-            _ => return Err(anyhow!("{} is an unsupported file type. Found {}?", &file, kind.mime_type())),
+            _ => {
+                return Err(anyhow!(
+                    "{} is an unsupported file type. Found {}?",
+                    &file,
+                    kind.mime_type()
+                ))
+            }
         }
-        
+
         // Create temp work directory. We'll put the file here, then run the command we
         // were given on it.
         let work_dir = format!("{}/{}_{}", self.work_path, owner, file_prefix);
@@ -135,12 +164,14 @@ impl Srvrs {
         fs::rename(file, &work_path)?;
 
         info!("Running command: {}", self.command.to_owned());
+        update_status("Launching command...".to_string())?;
 
-        exec_stream(self.command.to_owned(), vec!("-p".to_string(), work_path));
+        exec_stream(self.command.to_owned(), vec!["-p".to_string(), work_path])?;
 
         // When finished, move the work directory into the distributor directory
-        // so that the distributor can send it to the user. 
+        // so that the distributor can send it to the user.
         info!("Moving to distributor");
+        update_status("Moving to distributor...".to_string())?;
         fs::rename(work_dir, format!("{}/{}", self.distributor_path, owner))?;
 
         Ok(())

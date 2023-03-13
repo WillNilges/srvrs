@@ -10,22 +10,27 @@ SERVICE="$BASE/whisper"
 SCRIPTS="$BASE/scripts"
 WORK="$BASE/work"
 DIST="$BASE/distributor"
+STATUS="$BASE/status"
 
 cargo build --release
 
 sudo useradd $APP | echo "User already added"
 
 # Create the necessary directories and set permissions
-sudo rm -rf $SERVICE $SCRIPTS $WORK $DIST
+sudo rm -rf $SERVICE $SCRIPTS $WORK $DIST $STATUS
 sudo mkdir -p $SERVICE $SCRIPTS $WORK $DIST
+sudo touch $STATUS
 
 # Modifications for the daemon's directories.
-sudo chown -R $APP:$APP $SCRIPTS $WORK $DIST
+sudo chown -R $APP:$APP $SCRIPTS $WORK $DIST $STATUS
 sudo chmod 700 $SCRIPTS $WORK $DIST
 
 # The directory that users will write to is special.
-sudo chown -R $APP:member $SERVICE
+sudo chown -R $APP:member $SERVICE $STATUS
 sudo chmod 730 $SERVICE
+
+# Status file to let users know what's poppin'
+sudo chmod 740 $STATUS
 
 
 # Install script, systemd service, and binary
