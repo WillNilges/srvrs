@@ -11,6 +11,18 @@ use std::{
     process::{Command, Stdio},
 };
 
+fn update_queue() -> Result<()> {
+    let paths = fs::read_dir("/var/srvrs/whisper").unwrap();
+
+    let mut qf = fs::File::create("/var/srvrs/queue")?;
+    let mut queue_files = String::from("");
+    for path in paths {
+        queue_files.push_str(format!("{}\n", path.unwrap().path().display()).as_str());
+    }
+    qf.write_all(queue_files.as_bytes())?;
+    Ok(())
+}
+
 fn update_status(status: String) -> Result<()> {
     let mut sf = fs::File::create("/var/srvrs/status")?;
     sf.write_all(status.as_bytes())?;
@@ -82,6 +94,8 @@ impl Srvrs {
         for res in rx {
             match res {
                 Ok(event) => {
+                    // Update number of files in the queue
+                    update_queue().unwrap_or_else(|_| error!("Could not update queue"));
                     match event.kind {
                         // Only take action after the file is finished writing.
                         notify::EventKind::Access(notify::event::AccessKind::Close(

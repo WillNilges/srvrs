@@ -16,6 +16,7 @@ enum Action {
     Watch(WatchArgs),
     Status,
     Services,
+    Queue,
 }
 
 #[derive(Args, Debug)]
@@ -65,6 +66,19 @@ fn main() {
         Action::Services => {
             // Lol
             println!("Available Services:\nwhisper, an auto-captioning service for audio and video files");
+        }
+        Action::Queue => {
+            let file = File::open("/var/srvrs/queue");
+            match file {
+                Ok(mut f) => {
+                    let mut contents = String::new();
+                    f.read_to_string(&mut contents).unwrap();
+                    println!("{}", contents);
+                },
+                Err(e) => {
+                    println!("No Queue: {}", e);
+                }
+            }
         }
     }
 }
