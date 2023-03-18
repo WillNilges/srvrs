@@ -3,6 +3,7 @@ use clap::{Args, Parser, Subcommand};
 use std::{io::Read, fs::File};
 
 pub mod srvrs;
+pub mod activity;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
