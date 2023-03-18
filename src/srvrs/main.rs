@@ -2,7 +2,6 @@
 use clap::{Args, Parser, Subcommand};
 use std::{io::Read, fs::File};
 
-pub mod srvrs;
 pub mod activity;
 
 #[derive(Parser)]
@@ -22,17 +21,13 @@ enum Action {
 
 #[derive(Args, Debug)]
 struct WatchArgs {
-    /// Path of dir to watch
-    #[arg(short, long, required = true)]
-    primary_path: String,
+    /// Config file 
+    //#[arg(short, long, required = true)]
+    //config_file: String,
 
     /// Path where we do our work
     #[arg(short, long, required = true)]
     work_path: String,
-
-    /// Command to run with path as argument
-    #[arg(short, long, required = true)]
-    command: String,
 
     /// Path to distributor directory
     #[arg(short, long, required = true)]
@@ -43,13 +38,18 @@ fn main() {
     let args = SubCommands::parse();
     match args.subcommand {
         Action::Watch(watch_args) => {
-            let service = srvrs::Srvrs {
-                primary_path: watch_args.primary_path,
-                work_path: watch_args.work_path,
-                command: watch_args.command,
-                distributor_path: watch_args.distributor_path,
+            let service = activity::Activity {
+                name: "whisper".to_string(),
+                script: "/var/srvrs/scripts/whsiper.sh".to_string(), 
+                wants: vec![infer::MatcherType::Audio, infer::MatcherType::Video],
+                progress_regex: r"([0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9])( -->)".to_string(),
+                watch_dir: "/var/srvrs/watch/whisper".to_string(),
+                status_path: "/var/srvrs/status/whisper".to_string(),
+                queue_path: "/var/srvrs/queue/whisper".to_string(),
+                work_dir: "/var/srvrs/work".to_string(),
+                distributor_dir: "/var/srvrs/distributor/".to_string(),
             };
-            service.launch();
+            //service.launch();
         }
         Action::Status => {
             let file = File::open("/var/srvrs/status");

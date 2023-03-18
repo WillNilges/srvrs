@@ -10,11 +10,14 @@ use std::{
     path::PathBuf,
     process::{Command, Stdio},
 };
+use serde::{de, Serialize, Deserialize};
 
 // An activity is, simply put, a "thing that SRVRS can do for you."
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Activity {
     pub name: String, // The name of this activity 
     pub script: String, // Path to script this will run 
+    #[serde(deserialize_with = "wants_deserializer")]
     pub wants: Vec<infer::MatcherType>, // The kinds of file the script accepts
     pub progress_regex: String, // Regex for caputring status from output
     pub watch_dir: String, // The dir this Activity will watch for work
@@ -22,6 +25,20 @@ pub struct Activity {
     pub queue_path: String, // The file this Activity will report queue
     pub work_dir: String, // The dir work is done
     pub distributor_dir: String, // The dir to put finished work in
+}
+
+fn wants_deserializer<'de, D>(deserializer: D) -> Result<Vec<infer::MatcherType>, D::Error>
+where
+  D: de::Deserializer<'de>,
+{
+  let number: String = Deserialize::deserialize(deserializer)?;
+  match number.parse::<i64>() {
+    Ok(res) => Ok(res),
+    Err(e) => Err(de::Error::custom(format!(
+      "Failed to deserialize i64: {}",
+      e
+    ))),
+  }
 }
 
 impl Activity {
@@ -33,7 +50,9 @@ impl Activity {
             "Watching {}. Will run `{}` when a file is added.",
             self.name, self.script
         );
-        self.update_status(format!("Idle. Upload a file to {} to get started.", self.watch_dir));
+        self.update_status(
+            format!("Idle. Upload a file to {} to get started.", self.watch_dir)
+        );
         if let Err(e) = self.watch() {
             error!("error: {:?}", e)
         }
@@ -65,7 +84,8 @@ impl Activity {
             Ok(())
         }
 
-        write_queue(self.watch_dir, self.queue_path).unwrap_or_else(|_| error!("Could not update queue"));
+        write_queue(self.watch_dir, self.queue_path)
+            .unwrap_or_else(|_| error!("Could not update queue"));
     }
 
     fn run_script(&self, input: String) -> Result<()> {
@@ -126,7 +146,10 @@ impl Activity {
                             match self.respond(&event.paths) {
                                 Ok(()) => {
                                         self.update_status(
-                                            format!("Idle. Upload a file to {} to get started.", self.watch_dir)
+                                            format!(
+                                                "Idle. Upload a file to {} to get started.",
+                                                self.watch_dir
+                                            )
                                         );
                                     }
                                 Err(e) => {
