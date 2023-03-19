@@ -13,7 +13,7 @@ use std::{
 use serde::{de, Serialize, Deserialize};
 
 // An activity is, simply put, a "thing that SRVRS can do for you."
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct Activity {
     pub name: String, // The name of this activity 
     pub script: String, // Path to script this will run 
@@ -31,14 +31,26 @@ fn wants_deserializer<'de, D>(deserializer: D) -> Result<Vec<infer::MatcherType>
 where
   D: de::Deserializer<'de>,
 {
-  let number: String = Deserialize::deserialize(deserializer)?;
-  match number.parse::<i64>() {
-    Ok(res) => Ok(res),
-    Err(e) => Err(de::Error::custom(format!(
-      "Failed to deserialize i64: {}",
-      e
-    ))),
-  }
+
+    let string_types: Vec<&str> = Deserialize::deserialize(deserializer)?;
+    string_types
+        .into_iter()
+        .map(|t|
+            match t {
+                    "App" => Ok(infer::MatcherType::App),
+                    "Archive" => Ok(infer::MatcherType::Archive),
+                    "Audio" => Ok(infer::MatcherType::Audio),
+                    "Book" => Ok(infer::MatcherType::Book),
+                    "Doc" => Ok(infer::MatcherType::Doc),
+                    "Font" => Ok(infer::MatcherType::Font),
+                    "Image" => Ok(infer::MatcherType::Image),
+                    "Text" => Ok(infer::MatcherType::Text),
+                    "Video" => Ok(infer::MatcherType::Video),
+                    "Custom" => Ok(infer::MatcherType::Custom),
+                    _ => Err(de::Error::invalid_value(de::Unexpected::Str(t), &"MatcherType")),
+            }
+        )
+        .collect()
 }
 
 impl Activity {
@@ -59,18 +71,18 @@ impl Activity {
     }
 
     fn update_status(&self, status: String) {
-        fn write_status(path: String, status: String) -> Result<()> {
+        fn write_status(path: &str, status: String) -> Result<()> {
             let mut sf = fs::File::create(path)?;
             sf.write_all(status.as_bytes())?;
             Ok(())
         }
 
-        write_status(self.status_path, status)
+        write_status(&self.status_path, status)
             .unwrap_or_else(|_|error!("Could not update status"));
     }
 
     fn update_queue(&self) {
-        fn write_queue(watch_dir: String, queue_path: String) -> Result<()> {
+        fn write_queue(watch_dir: &str, queue_path: &str) -> Result<()> {
             let paths = fs::read_dir(watch_dir).unwrap();
 
             let mut qf = fs::File::create(queue_path)?;
@@ -84,13 +96,14 @@ impl Activity {
             Ok(())
         }
 
-        write_queue(self.watch_dir, self.queue_path)
+        write_queue(&self.watch_dir, &self.queue_path)
             .unwrap_or_else(|_| error!("Could not update queue"));
     }
 
     fn run_script(&self, input: String) -> Result<()> {
-        let mut cmd = Command::new(self.script.as_ref())
-            .args(&input)
+        let script = &self.script;
+        let mut cmd = Command::new(script)
+            .arg(&input)
             .stdout(Stdio::piped())
             .spawn()
             .unwrap();
