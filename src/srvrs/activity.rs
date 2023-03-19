@@ -10,7 +10,7 @@ use std::{
     path::PathBuf,
     process::{Command, Stdio},
 };
-use serde::{de, Serialize, Deserialize};
+use serde::{de, Deserialize};
 
 // An activity is, simply put, a "thing that SRVRS can do for you."
 #[derive(Deserialize, Debug)]
@@ -37,17 +37,17 @@ where
         .into_iter()
         .map(|t|
             match t {
-                    "App" => Ok(infer::MatcherType::App),
-                    "Archive" => Ok(infer::MatcherType::Archive),
-                    "Audio" => Ok(infer::MatcherType::Audio),
-                    "Book" => Ok(infer::MatcherType::Book),
-                    "Doc" => Ok(infer::MatcherType::Doc),
-                    "Font" => Ok(infer::MatcherType::Font),
-                    "Image" => Ok(infer::MatcherType::Image),
-                    "Text" => Ok(infer::MatcherType::Text),
-                    "Video" => Ok(infer::MatcherType::Video),
-                    "Custom" => Ok(infer::MatcherType::Custom),
-                    _ => Err(de::Error::invalid_value(de::Unexpected::Str(t), &"MatcherType")),
+                "App" => Ok(infer::MatcherType::App),
+                "Archive" => Ok(infer::MatcherType::Archive),
+                "Audio" => Ok(infer::MatcherType::Audio),
+                "Book" => Ok(infer::MatcherType::Book),
+                "Doc" => Ok(infer::MatcherType::Doc),
+                "Font" => Ok(infer::MatcherType::Font),
+                "Image" => Ok(infer::MatcherType::Image),
+                "Text" => Ok(infer::MatcherType::Text),
+                "Video" => Ok(infer::MatcherType::Video),
+                "Custom" => Ok(infer::MatcherType::Custom),
+                _ => Err(de::Error::invalid_value(de::Unexpected::Str(t), &"MatcherType")),
             }
         )
         .collect()

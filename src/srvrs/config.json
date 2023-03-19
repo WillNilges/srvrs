@@ -1,0 +1,10 @@
+{
+    "whisper":{
+	"script":"whisper.sh",
+        "wants":[
+            "Audio",
+            "Video"
+        ],
+        "progress_regex":"r\"([0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9])( -->)\""
+    }
+}

@@ -38,6 +38,7 @@ fn main() {
     let args = SubCommands::parse();
     match args.subcommand {
         Action::Watch(watch_args) => {
+            /*
             let service = activity::Activity {
                 name: "whisper".to_string(),
                 script: "/var/srvrs/scripts/whsiper.sh".to_string(), 
@@ -49,6 +50,8 @@ fn main() {
                 work_dir: "/var/srvrs/work".to_string(),
                 distributor_dir: "/var/srvrs/distributor/".to_string(),
             };
+            */
+
             //service.launch();
         }
         Action::Status => {
