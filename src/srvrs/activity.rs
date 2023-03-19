@@ -9,15 +9,29 @@ use std::{
     io::{BufRead, BufReader, Write},
     path::PathBuf,
     process::{Command, Stdio},
+    collections::HashMap,
 };
 use serde::{de, Deserialize};
 
+#[derive(Deserialize, Debug)]
+pub struct SrvrsConfig {
+    pub base_dir: String,
+    pub activities: HashMap<String, ActivityConfig>
+}
+
 // An activity is, simply put, a "thing that SRVRS can do for you."
 #[derive(Deserialize, Debug)]
+pub struct ActivityConfig {
+    //pub name: String, // The name of this activity 
+    pub script: String, // Path to script this will run 
+    #[serde(deserialize_with = "wants_deserializer")]
+    pub wants: Vec<infer::MatcherType>, // The kinds of file the script accepts
+    pub progress_regex: String, // Regex for caputring status from output
+}
+
 pub struct Activity {
     pub name: String, // The name of this activity 
     pub script: String, // Path to script this will run 
-    #[serde(deserialize_with = "wants_deserializer")]
     pub wants: Vec<infer::MatcherType>, // The kinds of file the script accepts
     pub progress_regex: String, // Regex for caputring status from output
     pub watch_dir: String, // The dir this Activity will watch for work

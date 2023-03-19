@@ -1,0 +1,14 @@
+# SRVRS config file
+base_dir: '/tmp/wilnil/srvrs'
+activities:
+  whisper:
+      script: 'whisper.sh'
+      wants:
+        - Audio
+        - Video
+      progress_regex: '([0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9])( -->)'
+  stable-diffusion:
+      script: 'sd.sh'
+      wants:
+        - Text
+      progress_regex: '(\d+(\.\d+)?%)(?=|.s\/it])'
