@@ -7,6 +7,7 @@ from os.path import exists
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--prompt', dest='prompt', required=True, type=str, help='A prompt, or a path to a prompt')
+parser.add_argument('--device', dest='device', required=True, type=str, help='The device to run the model on')
 args = parser.parse_args()
 
 model_id = "stabilityai/stable-diffusion-2"
@@ -16,8 +17,8 @@ print('Loading scheduler')
 scheduler = EulerDiscreteScheduler.from_pretrained(model_id, subfolder="scheduler")
 print('Loading SD Pipeline')
 pipe = StableDiffusionPipeline.from_pretrained(model_id, scheduler=scheduler, torch_dtype=torch.float16)
-print('Running with CUDA')
-pipe = pipe.to("cuda")
+print(f'Running with {args.device}')
+pipe = pipe.to(f'{args.device}')
 
 prompt = ''
 

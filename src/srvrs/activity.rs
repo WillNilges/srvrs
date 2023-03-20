@@ -1,7 +1,6 @@
 use anyhow::{anyhow, Result};
 use file_owner::PathExt;
-use log::{error, info, warn, LevelFilter};
-use simple_logger::SimpleLogger;
+use log::{error, info, warn};
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use regex::Regex;
 use std::{
@@ -13,6 +12,8 @@ use std::{
 };
 use serde::{de, Deserialize};
 use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::chown;
+use users::get_group_by_name;
 
 #[derive(Deserialize, Debug)]
 pub struct SrvrsConfig {
@@ -76,6 +77,12 @@ impl Activity {
         info!("Creating directory: {}", &self.watch_dir);
         fs::create_dir_all(&self.watch_dir);
         fs::set_permissions(&self.watch_dir, fs::Permissions::from_mode(0o730)).unwrap();
+
+        let members_gid: u32 = match get_group_by_name("member") {
+                Some(group) => group.gid(),
+                _ => panic!("Group not found >:("),
+            };
+        chown(&self.watch_dir, None, Some(members_gid)).unwrap();
 
         info!(
             "Watching {}. Will run `{}` when a file is added.",

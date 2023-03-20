@@ -20,6 +20,7 @@ struct SubCommands {
 
 #[derive(Subcommand, Debug)]
 enum Action {
+    Setup(WatchArgs),
     Watch(WatchArgs),
     Status,
     Services,
@@ -33,10 +34,43 @@ struct WatchArgs {
     config_file: String,
 }
 
-#[tokio::main(flavor = "multi_thread", worker_threads = 3)]
+#[tokio::main(flavor = "multi_thread")]
 async fn main() {
     let args = SubCommands::parse();
     match args.subcommand {
+        Action::Setup(watch_args) => {
+            SimpleLogger::new().init().unwrap();
+            log::set_max_level(LevelFilter::Info);
+
+            let config = fs::read_to_string(watch_args.config_file).unwrap();
+            let sc: activity::SrvrsConfig = serde_yaml::from_str(&config).unwrap();
+
+            // All the required directories
+            //let watch_dir = format!("{}/watch", sc.base_dir);
+            let scripts_dir = format!("{}/scripts", sc.base_dir);
+            let status_dir = format!("{}/status", sc.base_dir);
+            let queue_dir = format!("{}/queue", sc.base_dir);
+            let work_dir = format!("{}/work", sc.base_dir);
+            let distributor_dir = format!("{}/distributor", sc.base_dir);
+
+            for dir in vec![&scripts_dir, &work_dir, &distributor_dir] {
+                info!("Creating directory: {}", &dir);
+                fs::create_dir_all(&dir).unwrap();
+                fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).unwrap();
+            }
+
+            for dir in vec![&status_dir, &queue_dir] {
+                info!("Creating directory: {}", &dir);
+                fs::create_dir_all(&dir).unwrap();
+                fs::set_permissions(&dir, fs::Permissions::from_mode(0o740)).unwrap();
+
+                let members_gid: u32 = match get_group_by_name("member") {
+                        Some(group) => group.gid(),
+                        _ => panic!("Group not found >:("),
+                    };
+                chown(dir, None, Some(members_gid)).unwrap();
+            }
+        },
         Action::Watch(watch_args) => {
             SimpleLogger::new().init().unwrap();
             log::set_max_level(LevelFilter::Info);

@@ -13,4 +13,4 @@ COPY . .
 
 WORKDIR /workdir
 
-ENTRYPOINT python3 stable-diffusion-2.py --prompt $SD2_PROMPT
+ENTRYPOINT python3 stable-diffusion-2.py --prompt $SD2_PROMPT --device $SD2_DEVICE
