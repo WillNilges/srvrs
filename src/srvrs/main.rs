@@ -4,6 +4,8 @@ use std::{io::Read, fs};
 use serde_yaml;
 use std::os::unix::fs::PermissionsExt;
 use tokio;
+use log::{error, info, warn, LevelFilter};
+use simple_logger::SimpleLogger;
 
 pub mod activity;
 
@@ -34,6 +36,9 @@ async fn main() {
     let args = SubCommands::parse();
     match args.subcommand {
         Action::Watch(watch_args) => {
+            SimpleLogger::new().init().unwrap();
+            log::set_max_level(LevelFilter::Info);
+
             let config = fs::read_to_string(watch_args.config_file).unwrap();
             let sc: activity::SrvrsConfig = serde_yaml::from_str(&config).unwrap();
 

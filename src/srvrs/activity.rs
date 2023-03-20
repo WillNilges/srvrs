@@ -72,8 +72,6 @@ impl Activity {
     pub async fn launch(&self) {
         println!("Hello, my name is {}", self.name);
         // TODO: Parse script and make sure it's formatted correctly?
-        SimpleLogger::new().init().unwrap();
-        log::set_max_level(LevelFilter::Info);
 
         info!("Creating directory: {}", &self.watch_dir);
         fs::create_dir_all(&self.watch_dir);
