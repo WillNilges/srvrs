@@ -1,9 +1,9 @@
 use anyhow::{anyhow, Result};
 use file_owner::PathExt;
 use log::{error, info, warn, LevelFilter};
+use simple_logger::SimpleLogger;
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use regex::Regex;
-use simple_logger::SimpleLogger;
 use std::{
     fs,
     io::{BufRead, BufReader, Write},
@@ -124,8 +124,7 @@ impl Activity {
         let mut cmd = Command::new(script)
             .arg(&input)
             .stdout(Stdio::piped())
-            .spawn()
-            .unwrap();
+            .spawn()?;
 
         let stdout = cmd.stdout.as_mut().unwrap();
         let stdout_reader = BufReader::new(stdout);
@@ -232,7 +231,7 @@ impl Activity {
                 Some(file_type) => file_type,
                 _ => return Err(anyhow!("Could not infer type of {}", file)),
             },
-            _ => return Err(anyhow!("Could not infer type of {}", file)),
+            _ => return Err(anyhow!("Could not find file: {}", file)),
         };
         if !self.wants.contains(&kind.matcher_type()) {
             return Err(anyhow!(
