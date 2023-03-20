@@ -1,11 +1,13 @@
 #![feature(path_file_prefix)]
+#![feature(unix_chown)]
 use clap::{Args, Parser, Subcommand};
-use std::{io::Read, fs};
+use std::{io::Read, fs, os::unix::fs::chown};
 use serde_yaml;
 use std::os::unix::fs::PermissionsExt;
 use tokio;
 use log::{error, info, warn, LevelFilter};
 use simple_logger::SimpleLogger;
+use users::get_group_by_name;
 
 pub mod activity;
 
@@ -51,15 +53,21 @@ async fn main() {
             let distributor_dir = format!("{}/distributor", sc.base_dir);
 
             for dir in vec![&scripts_dir, &work_dir, &distributor_dir] {
-                println!("Creating directory: {}", &dir);
+                info!("Creating directory: {}", &dir);
                 fs::create_dir_all(&dir).unwrap();
                 fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).unwrap();
             }
 
             for dir in vec![&status_dir, &queue_dir] {
-                println!("Creating directory: {}", &dir);
+                info!("Creating directory: {}", &dir);
                 fs::create_dir_all(&dir).unwrap();
                 fs::set_permissions(&dir, fs::Permissions::from_mode(0o740)).unwrap();
+
+                let members_gid: u32 = match get_group_by_name("member") {
+                        Some(group) => group.gid(),
+                        _ => panic!("Group not found >:("),
+                    };
+                chown(dir, None, Some(members_gid)).unwrap();
             }
 
             // spawn tasks that run in parallel

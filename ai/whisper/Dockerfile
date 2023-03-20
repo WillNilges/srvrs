@@ -8,4 +8,4 @@ RUN pip install git+https://github.com/openai/whisper.git
 
 WORKDIR /workdir
 
-ENTRYPOINT whisper $WHISPER_VIDEO_PATH
+ENTRYPOINT whisper --device $WHISPER_DEVICE $WHISPER_VIDEO_PATH 
