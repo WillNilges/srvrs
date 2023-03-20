@@ -2,6 +2,8 @@
 use clap::{Args, Parser, Subcommand};
 use std::{io::Read, fs};
 use serde_yaml;
+use std::os::unix::fs::PermissionsExt;
+use tokio;
 
 pub mod activity;
 
@@ -27,7 +29,8 @@ struct WatchArgs {
     config_file: String,
 }
 
-fn main() {
+#[tokio::main(flavor = "multi_thread", worker_threads = 3)]
+async fn main() {
     let args = SubCommands::parse();
     match args.subcommand {
         Action::Watch(watch_args) => {
@@ -35,40 +38,56 @@ fn main() {
             let sc: activity::SrvrsConfig = serde_yaml::from_str(&config).unwrap();
 
             // All the required directories
-            let watch_dir = format!("{}/watch", sc.base_dir);
+            //let watch_dir = format!("{}/watch", sc.base_dir);
             let scripts_dir = format!("{}/scripts", sc.base_dir);
             let status_dir = format!("{}/status", sc.base_dir);
             let queue_dir = format!("{}/queue", sc.base_dir);
             let work_dir = format!("{}/work", sc.base_dir);
             let distributor_dir = format!("{}/distributor", sc.base_dir);
 
-            /*
-            let service = activity::Activity {
-                name: "whisper".to_string(),
-                script: "/var/srvrs/scripts/whsiper.sh".to_string(), 
-                wants: vec![infer::MatcherType::Audio, infer::MatcherType::Video],
-                progress_regex: r"([0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9])( -->)".to_string(),
-                watch_dir: "/var/srvrs/watch/whisper".to_string(),
-                status_path: "/var/srvrs/status/whisper".to_string(),
-                queue_path: "/var/srvrs/queue/whisper".to_string(),
-                work_dir: "/var/srvrs/work".to_string(),
-                distributor_dir: "/var/srvrs/distributor/".to_string(),
-            };
-            */
+            for dir in vec![&scripts_dir, &work_dir, &distributor_dir] {
+                println!("Creating directory: {}", &dir);
+                fs::create_dir_all(&dir).unwrap();
+                fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).unwrap();
+            }
+
+            for dir in vec![&status_dir, &queue_dir] {
+                println!("Creating directory: {}", &dir);
+                fs::create_dir_all(&dir).unwrap();
+                fs::set_permissions(&dir, fs::Permissions::from_mode(0o740)).unwrap();
+            }
+
+            // spawn tasks that run in parallel
+            let mut items = vec![];
+
             for (name, ac) in &sc.activities {
-                let activity = activity::Activity {
+                items.push(activity::Activity {
                     name: name.clone(),
                     script: format!("{}/{}", scripts_dir, name),
                     wants: ac.wants.clone(),
                     progress_regex: ac.progress_regex.clone(),
-                    watch_dir: format!("{}/{}", watch_dir, name),
+                    watch_dir: format!("{}/{}", sc.base_dir, name),
                     status_path: format!("{}/{}", status_dir, name),
                     queue_path: format!("{}/{}", queue_dir, name),
                     work_dir: work_dir.clone(),
                     distributor_dir: distributor_dir.clone()
-                };
-                activity.launch();
-                println!("Activity Launched!");
+                });
+            }
+
+            let tasks: Vec<_> = items
+                .into_iter()
+                .map(|mut item| {
+                    tokio::spawn(async {
+                        item.launch().await;
+                        item
+                    })
+                })
+                .collect();
+
+            // await the tasks for resolve's to complete and give back our items
+            let mut items = vec![];
+            for task in tasks {
+                items.push(task.await.unwrap());
             }
         }
         Action::Status => {

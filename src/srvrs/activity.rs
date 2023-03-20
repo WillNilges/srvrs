@@ -12,6 +12,7 @@ use std::{
     collections::HashMap,
 };
 use serde::{de, Deserialize};
+use std::os::unix::fs::PermissionsExt;
 
 #[derive(Deserialize, Debug)]
 pub struct SrvrsConfig {
@@ -68,10 +69,16 @@ where
 }
 
 impl Activity {
-    pub fn launch(&self) {
+    pub async fn launch(&self) {
+        println!("Hello, my name is {}", self.name);
         // TODO: Parse script and make sure it's formatted correctly?
         SimpleLogger::new().init().unwrap();
         log::set_max_level(LevelFilter::Info);
+
+        info!("Creating directory: {}", &self.watch_dir);
+        fs::create_dir_all(&self.watch_dir);
+        fs::set_permissions(&self.watch_dir, fs::Permissions::from_mode(0o730)).unwrap();
+
         info!(
             "Watching {}. Will run `{}` when a file is added.",
             self.name, self.script
@@ -80,8 +87,8 @@ impl Activity {
             format!("Idle. Upload a file to {} to get started.", self.watch_dir)
         );
         if let Err(e) = self.watch() {
-            error!("error: {:?}", e)
-        }
+            error!("error: {:?}", e);
+        } 
     }
 
     fn update_status(&self, status: String) {
