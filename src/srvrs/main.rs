@@ -7,7 +7,7 @@ use std::os::unix::fs::PermissionsExt;
 use tokio;
 use log::{error, info, warn, LevelFilter};
 use simple_logger::SimpleLogger;
-use users::get_group_by_name;
+use users::{get_user_by_name, get_group_by_name};
 
 pub mod activity;
 
@@ -37,11 +37,12 @@ struct WatchArgs {
 #[tokio::main(flavor = "multi_thread")]
 async fn main() {
     let args = SubCommands::parse();
+    SimpleLogger::new().init().unwrap();
+    log::set_max_level(LevelFilter::Info);
+            
     match args.subcommand {
         Action::Setup(watch_args) => {
-            SimpleLogger::new().init().unwrap();
-            log::set_max_level(LevelFilter::Info);
-
+            println!("Running setup...");
             let config = fs::read_to_string(watch_args.config_file).unwrap();
             let sc: activity::SrvrsConfig = serde_yaml::from_str(&config).unwrap();
 
@@ -53,28 +54,55 @@ async fn main() {
             let work_dir = format!("{}/work", sc.base_dir);
             let distributor_dir = format!("{}/distributor", sc.base_dir);
 
+            let members_gid: u32 = match get_group_by_name("member") {
+                Some(group) => group.gid(),
+                _ => panic!("Group not found >:("),
+            };
+
+            let srvrs_uid: u32 = match get_user_by_name("srvrs") {
+                Some(user) => user.uid(),
+                _ => panic!("User not found >:("),
+            };
+
+            let srvrs_gid: u32 = match get_group_by_name("srvrs") {
+                Some(group) => group.gid(),
+                _ => panic!("Group not found >:("),
+            };
+
+            // Create base directories for srvrs
             for dir in vec![&scripts_dir, &work_dir, &distributor_dir] {
                 info!("Creating directory: {}", &dir);
                 fs::create_dir_all(&dir).unwrap();
                 fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).unwrap();
+                chown(dir, Some(srvrs_uid), Some(srvrs_gid)).unwrap();
             }
 
+            // Create status and queue directories
             for dir in vec![&status_dir, &queue_dir] {
                 info!("Creating directory: {}", &dir);
                 fs::create_dir_all(&dir).unwrap();
                 fs::set_permissions(&dir, fs::Permissions::from_mode(0o740)).unwrap();
 
-                let members_gid: u32 = match get_group_by_name("member") {
-                        Some(group) => group.gid(),
-                        _ => panic!("Group not found >:("),
-                    };
-                chown(dir, None, Some(members_gid)).unwrap();
+                chown(dir, Some(srvrs_uid), Some(members_gid)).unwrap();
             }
+
+            // Create work directory for each activity
+            for (name, _) in &sc.activities {
+                let activity_dir = format!("{}/{}", sc.base_dir, name);
+                info!("Creating directory: {}", activity_dir);
+                fs::create_dir_all(&activity_dir).unwrap();
+                fs::set_permissions(&activity_dir, fs::Permissions::from_mode(0o730)).unwrap();
+
+                let members_gid: u32 = match get_group_by_name("member") {
+                    Some(group) => group.gid(),
+                    _ => panic!("Group not found >:("),
+                };
+                chown(activity_dir, Some(srvrs_uid), Some(members_gid)).unwrap();
+            }
+
+            println!("Finished!");
         },
         Action::Watch(watch_args) => {
-            SimpleLogger::new().init().unwrap();
-            log::set_max_level(LevelFilter::Info);
-
             let config = fs::read_to_string(watch_args.config_file).unwrap();
             let sc: activity::SrvrsConfig = serde_yaml::from_str(&config).unwrap();
 
@@ -85,25 +113,6 @@ async fn main() {
             let queue_dir = format!("{}/queue", sc.base_dir);
             let work_dir = format!("{}/work", sc.base_dir);
             let distributor_dir = format!("{}/distributor", sc.base_dir);
-
-            for dir in vec![&scripts_dir, &work_dir, &distributor_dir] {
-                info!("Creating directory: {}", &dir);
-                fs::create_dir_all(&dir).unwrap();
-                fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).unwrap();
-            }
-
-            for dir in vec![&status_dir, &queue_dir] {
-                info!("Creating directory: {}", &dir);
-                fs::create_dir_all(&dir).unwrap();
-                fs::set_permissions(&dir, fs::Permissions::from_mode(0o740)).unwrap();
-
-                let members_gid: u32 = match get_group_by_name("member") {
-                        Some(group) => group.gid(),
-                        _ => panic!("Group not found >:("),
-                    };
-                chown(dir, None, Some(members_gid)).unwrap();
-            }
-
             // spawn tasks that run in parallel
             let mut items = vec![];
 

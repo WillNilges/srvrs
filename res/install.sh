@@ -26,6 +26,8 @@ sudo cp res/srvrs-distributor.service /etc/systemd/system/
 sudo install target/release/$APP /usr/local/sbin/$APP 
 sudo install target/release/$APP-distributor /usr/local/sbin/$APP-distributor
 
+sudo /usr/local/sbin/srvrs setup -c /etc/srvrs.yaml 
+
 # Launch srvrs!
 sudo systemctl enable srvrs
 sudo systemctl enable srvrs-distributor

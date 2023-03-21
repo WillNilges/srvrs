@@ -11,9 +11,6 @@ use std::{
     collections::HashMap,
 };
 use serde::{de, Deserialize};
-use std::os::unix::fs::PermissionsExt;
-use std::os::unix::fs::chown;
-use users::get_group_by_name;
 
 #[derive(Deserialize, Debug)]
 pub struct SrvrsConfig {
@@ -71,18 +68,7 @@ where
 
 impl Activity {
     pub async fn launch(&self) {
-        println!("Hello, my name is {}", self.name);
         // TODO: Parse script and make sure it's formatted correctly?
-
-        info!("Creating directory: {}", &self.watch_dir);
-        fs::create_dir_all(&self.watch_dir);
-        fs::set_permissions(&self.watch_dir, fs::Permissions::from_mode(0o730)).unwrap();
-
-        let members_gid: u32 = match get_group_by_name("member") {
-                Some(group) => group.gid(),
-                _ => panic!("Group not found >:("),
-            };
-        chown(&self.watch_dir, None, Some(members_gid)).unwrap();
 
         info!(
             "Watching {}. Will run `{}` when a file is added.",
