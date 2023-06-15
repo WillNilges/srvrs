@@ -60,6 +60,7 @@ where
                 "Text" => Ok(infer::MatcherType::Text),
                 "Video" => Ok(infer::MatcherType::Video),
                 "Custom" => Ok(infer::MatcherType::Custom),
+                "Any" => Ok(infer::MatcherType::Custom),
                 _ => Err(de::Error::invalid_value(de::Unexpected::Str(t), &"MatcherType")),
             }
         )
@@ -127,7 +128,8 @@ impl Activity {
             match line {
                 Ok(l) => {
                     info!("{}", l);
-                    let re = Regex::new(&self.progress_regex).unwrap();
+                    let re = Regex::new(&self.progress_regex).unwrap(); // FIXME: Don't
+                    // crash on bad regex, just throw out a warning.
                     for caps in re.captures_iter(&l) {
                         self.update_status(
                             format!(
@@ -218,22 +220,25 @@ impl Activity {
 
         info!("{} uploaded {}", owner, file);
 
-        // Check if it's the right kind of file
-        let kind = match infer::get_from_path(&file) {
-            Ok(file_read) => match file_read {
-                Some(file_type) => file_type,
-                _ => return Err(anyhow!("Could not infer type of {}", file)),
-            },
-            _ => return Err(anyhow!("Could not find file: {}", file)),
-        };
-        if !self.wants.contains(&kind.matcher_type()) {
-            return Err(anyhow!(
-                "{} is an unsupported file type. Found {}?",
-                &file,
-                kind.mime_type()
-            ))
+        // Hacky skip to get stable diffusion working with raw text files.
+        if !(self.wants[0] == infer::MatcherType::Text && self.wants.len() == 1) {
+            // Check if it's the right kind of file
+            let kind = match infer::get_from_path(&file) {
+                Ok(file_read) => match file_read {
+                    Some(file_type) => file_type,
+                    _ => return Err(anyhow!("Could not infer type of {}", file)),
+                },
+                _ => return Err(anyhow!("Could not find file: {}", file)),
+            };
+            if !self.wants.contains(&kind.matcher_type()) {
+                return Err(anyhow!(
+                    "{} is an unsupported file type. Found {}?",
+                    &file,
+                    kind.mime_type()
+                ))
+            }
+            info!("{} is a {:?}", &file, kind.matcher_type());
         }
-        info!("{} is a {:?}", &file, kind.matcher_type());
         
         // Create temp work directory. We'll put the file here, then run the command we
         // were given on it.

@@ -61,12 +61,12 @@ async fn main() {
 
             let srvrs_uid: u32 = match get_user_by_name("srvrs") {
                 Some(user) => user.uid(),
-                _ => panic!("User not found >:("),
+                _ => panic!("User not found"),
             };
 
             let srvrs_gid: u32 = match get_group_by_name("srvrs") {
                 Some(group) => group.gid(),
-                _ => panic!("Group not found >:("),
+                _ => panic!("Group not found"),
             };
 
             // Create base directories for srvrs
@@ -119,7 +119,7 @@ async fn main() {
             for (name, ac) in &sc.activities {
                 items.push(activity::Activity {
                     name: name.clone(),
-                    script: format!("{}/{}", scripts_dir, name),
+                    script: format!("{}/{}", scripts_dir, ac.script),
                     wants: ac.wants.clone(),
                     progress_regex: ac.progress_regex.clone(),
                     watch_dir: format!("{}/{}", sc.base_dir, name),
@@ -132,7 +132,7 @@ async fn main() {
 
             let tasks: Vec<_> = items
                 .into_iter()
-                .map(|mut item| {
+                .map(|item| {
                     tokio::spawn(async {
                         item.launch().await;
                         item
@@ -147,6 +147,8 @@ async fn main() {
             }
         }
         Action::Status => {
+            unimplemented!();
+            /*
             let file = fs::File::open("/var/srvrs/status");
             match file {
                 Ok(mut f) => {
@@ -158,12 +160,18 @@ async fn main() {
                     println!("No Status: {}", e);
                 }
             }
+            */
         }
         Action::Services => {
+            unimplemented!();
+            /*
             // Lol
             println!("Available Services:\nwhisper, an auto-captioning service for audio and video files");
+            */
         }
         Action::Queue => {
+            unimplemented!();
+            /*
             let file = fs::File::open("/var/srvrs/queue");
             match file {
                 Ok(mut f) => {
@@ -175,6 +183,7 @@ async fn main() {
                     println!("No Queue: {}", e);
                 }
             }
+            */
         }
     }
 }

@@ -8,6 +8,7 @@ from os.path import exists
 parser = argparse.ArgumentParser()
 parser.add_argument('--prompt', dest='prompt', required=True, type=str, help='A prompt, or a path to a prompt')
 parser.add_argument('--device', dest='device', required=True, type=str, help='The device to run the model on')
+parser.add_argument('--output', dest='output', required=False, type=str, help='Path to save the final image to')
 args = parser.parse_args()
 
 model_id = "stabilityai/stable-diffusion-2"
@@ -20,8 +21,11 @@ pipe = StableDiffusionPipeline.from_pretrained(model_id, scheduler=scheduler, to
 print(f'Running with {args.device}')
 pipe = pipe.to(f'{args.device}')
 
-prompt = ''
+output = 'output.png'
+if args.output is not None:
+    output = args.output
 
+prompt = ''
 if exists(args.prompt):
     with open(args.prompt) as prompt_file:
         prompt = prompt_file.read()
@@ -29,4 +33,4 @@ else:
     prompt = args.prompt
 
 image = pipe(prompt).images[0]
-image.save("output.png")
+image.save(output)

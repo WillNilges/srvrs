@@ -11,4 +11,4 @@ activities:
       script: 'sd.sh'
       wants:
         - Text
-      progress_regex: '(\d+(\.\d+)?%)(?=|.s\/it])'
+      progress_regex: '(\d+(\.\d+)?%)'
