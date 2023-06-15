@@ -1,4 +1,4 @@
-# SRVRS
+# SRVRS *[ sur-vers ]*
 
 An experimental platform for performing file-in-file-out work on a server.
 

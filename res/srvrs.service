@@ -1,0 +1,11 @@
+[Unit]
+Description=SRVRS. A platform for file in, file out operations.
+
+[Service]
+Type=simple
+User=srvrs
+Group=srvrs
+ExecStart=/usr/local/sbin/srvrs watch -c /etc/srvrs.yaml 
+
+[Install]
+WantedBy=default.target

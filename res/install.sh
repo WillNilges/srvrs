@@ -3,48 +3,38 @@
 set -e
 
 APP=srvrs
+USER=srvrs
+GROUP=service
 
 # Directories to create/modify
 BASE=/var/srvrs
-SERVICE="$BASE/whisper"
 SCRIPTS="$BASE/scripts"
-WORK="$BASE/work"
-DIST="$BASE/distributor"
-STATUS="$BASE/status"
-QUEUE="$BASE/queue"
 
 cargo build --release
 
-sudo useradd $APP | echo "User already added"
+# sudo useradd $APP | echo "User already added" # We're doing the user through SSSDeez now, because you can't pull SIDs for local users and network users at the same time. GAH!
 
-# Create the necessary directories and set permissions
-sudo rm -rf $SERVICE $SCRIPTS $WORK $DIST $STATUS $QUEUE
-sudo mkdir -p $SERVICE $SCRIPTS $WORK $DIST
-sudo touch $STATUS $QUEUE
+sudo rm -rf $BASE
+sudo mkdir -p $BASE $SCRIPTS
 
-# Modifications for the daemon's directories.
-sudo chown -R $APP:$APP $SCRIPTS $WORK $DIST
-sudo chmod 700 $SCRIPTS $WORK $DIST
+# Install script
+sudo cp ai/whisper/whisper.sh ai/stable-diffusion/sd.sh $SCRIPTS
+sudo chown -R $USER:$GROUP $BASE 
 
-# The directory that users will write to is special.
-sudo chown -R $APP:member $SERVICE $STATUS $QUEUE
-sudo chmod 730 $SERVICE
-
-# Status file to let users know what's poppin'
-sudo chmod 740 $STATUS $QUEUE
-
-# Install script, systemd service, and binary
-sudo cp res/run_whisper_container.sh /var/srvrs/scripts
-sudo cp res/srvrs-whisper.service /etc/systemd/system/
+# Install systemd service and binary
+sudo cp res/srvrs.yaml /etc/
+sudo cp res/srvrs.service /etc/systemd/system/
 sudo cp res/srvrs-distributor.service /etc/systemd/system/
 sudo install target/release/$APP /usr/local/sbin/$APP 
 sudo install target/release/$APP-distributor /usr/local/sbin/$APP-distributor
 
+sudo /usr/local/sbin/srvrs setup -c /etc/srvrs.yaml 
+
 # Launch srvrs!
-sudo systemctl enable srvrs-whisper
+sudo systemctl enable srvrs
 sudo systemctl enable srvrs-distributor
 
-sudo systemctl restart srvrs-whisper
+sudo systemctl restart srvrs
 sudo systemctl restart srvrs-distributor
 
 echo "Installed $APP."
