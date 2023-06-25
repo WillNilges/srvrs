@@ -68,6 +68,8 @@ where
 }
 
 impl Activity {
+
+    // Setup the service and watch the requisite directories
     pub async fn launch(&self) {
         // TODO: Parse script and make sure it's formatted correctly?
 
@@ -83,6 +85,7 @@ impl Activity {
         } 
     }
 
+    // Write a string to a file, presumably, the string is output from a script.
     fn update_status(&self, status: String) {
         fn write_status(path: &str, status: String) -> Result<()> {
             let mut sf = fs::File::create(path)?;
@@ -113,6 +116,8 @@ impl Activity {
             .unwrap_or_else(|_| error!("Could not update queue"));
     }
 
+    // Run whatever script is attached to the activity and use a regex to try
+    // capturing status updates
     fn run_script(&self, input: String) -> Result<()> {
         let script = &self.script;
         let mut cmd = Command::new(script)
@@ -127,16 +132,26 @@ impl Activity {
         for line in stdout_lines {
             match line {
                 Ok(l) => {
-                    info!("{}", l);
-                    let re = Regex::new(&self.progress_regex).unwrap(); // FIXME: Don't
+                    info!("Chom! {}", l);
+                    let sus_re = Regex::new(&self.progress_regex); // FIXME: Don't
                     // crash on bad regex, just throw out a warning.
-                    for caps in re.captures_iter(&l) {
-                        self.update_status(
-                            format!(
-                                "Running {}...\n{}", 
-                                self.name, caps.get(1).unwrap().as_str()
-                            )
-                        );
+                    
+                    match sus_re {
+                        Ok(re)  => {
+                            for caps in re.captures_iter(&l) {
+                                info!("Regex Matched: {}", l);
+                                self.update_status(
+                                    format!(
+                                        "Running {}...\n{}", 
+                                        self.name, caps.get(1).unwrap().as_str()
+                                    )
+                                );
+                            }
+                        },
+                        Err(bad_re) => {
+                            warn!("Got bad regex!");
+                            warn!("{}", bad_re);
+                        },
                     }
                 }
                 _ => warn!("Could not read command ouput."),
