@@ -5,13 +5,17 @@ import argparse
 import torch
 from os.path import exists
 
+model_id = "stabilityai/stable-diffusion-2"
+inference_steps=50
+
+def progress(step, timestep, latents):
+    print(f"sd2 iteration progress: {step} of {inference_steps}")
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--prompt', dest='prompt', required=True, type=str, help='A prompt, or a path to a prompt')
 parser.add_argument('--device', dest='device', required=True, type=str, help='The device to run the model on')
 parser.add_argument('--output', dest='output', required=False, type=str, help='Path to save the final image to')
 args = parser.parse_args()
-
-model_id = "stabilityai/stable-diffusion-2"
 
 # Use the Euler scheduler here instead
 print('Loading scheduler')
@@ -32,5 +36,5 @@ if exists(args.prompt):
 else:
     prompt = args.prompt
 
-image = pipe(prompt).images[0]
+image = pipe(prompt, callback=progress, callback_steps=1).images[0]
 image.save(output)
