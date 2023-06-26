@@ -125,17 +125,15 @@ impl Activity {
             .stdout(Stdio::piped())
             .spawn()?;
 
-        let stdout = cmd.stdout.as_mut().unwrap();
-        let stdout_reader = BufReader::new(stdout);
-        let stdout_lines = stdout_reader.lines();
+        let cmd_stdout = cmd.stdout.as_mut().unwrap();
+        let cmd_stdout_reader = BufReader::new(cmd_stdout);
+        let cmd_stdout_lines = cmd_stdout_reader.lines();
 
-        for line in stdout_lines {
+        for line in cmd_stdout_lines {
             match line {
                 Ok(l) => {
-                    info!("Chom! {}", l);
-                    let sus_re = Regex::new(&self.progress_regex); // FIXME: Don't
-                    // crash on bad regex, just throw out a warning.
-                    
+                    info!("Script Log: {}", l);
+                    let sus_re = Regex::new(&self.progress_regex);
                     match sus_re {
                         Ok(re)  => {
                             for caps in re.captures_iter(&l) {
@@ -149,8 +147,7 @@ impl Activity {
                             }
                         },
                         Err(bad_re) => {
-                            warn!("Got bad regex!");
-                            warn!("{}", bad_re);
+                            warn!("Got bad regex: {}", bad_re);
                         },
                     }
                 }

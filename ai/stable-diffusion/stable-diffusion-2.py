@@ -24,6 +24,7 @@ print('Loading SD Pipeline')
 pipe = StableDiffusionPipeline.from_pretrained(model_id, scheduler=scheduler, torch_dtype=torch.float16)
 print(f'Running with {args.device}')
 pipe = pipe.to(f'{args.device}')
+pipe.set_progress_bar_config(disable=True)
 
 output = 'output.png'
 if args.output is not None:

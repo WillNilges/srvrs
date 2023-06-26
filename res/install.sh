@@ -30,6 +30,25 @@ sudo install target/release/$APP-distributor /usr/local/sbin/$APP-distributor
 
 sudo /usr/local/sbin/srvrs setup -c /etc/srvrs.yaml 
 
+# Switch user to srvrs and build the containers
+build_containers() {
+	set -e # Shit and die if something breaks
+	echo "Building containers..."
+	cd $BASE/ai/
+	for dir in ./*; do
+		cd $dir
+		echo "Found AI: $(pwd)"
+		podman build . --tag srvrs-$(basename $dir)
+		cd ..
+	done
+	exit
+	echo "Finished building containers"
+}
+
+sudo cp -r ai $BASE/
+sudo su -c "export BASE=$BASE; $(declare -f build_containers); build_containers" \
+	-s /bin/bash $USER
+
 # Launch srvrs!
 sudo systemctl enable srvrs
 sudo systemctl enable srvrs-distributor
