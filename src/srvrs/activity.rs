@@ -9,8 +9,10 @@ use std::{
     path::PathBuf,
     process::{Command, Stdio},
     collections::HashMap,
+    os::unix::fs::{chown, PermissionsExt},
 };
 use serde::{de, Deserialize};
+use crate::{SRVRS_UID, SRVRS_GID, MEMBERS_GID};
 
 #[derive(Deserialize, Debug)]
 pub struct SrvrsConfig {
@@ -89,8 +91,8 @@ impl Activity {
     fn update_status(&self, status: String) {
         fn write_status(path: &str, status: String) -> Result<()> {
             let mut sf = fs::File::create(path)?;
-            fs::set_permissions(&sf, fs::Permissions::from_mode(0o744)).unwrap();
-            chown(sf, Some(srvrs_uid), Some(members_gid)).unwrap();
+            fs::set_permissions(path, fs::Permissions::from_mode(0o644)).unwrap();
+            chown(path, Some(*SRVRS_UID), Some(*MEMBERS_GID)).unwrap();
             sf.write_all(status.as_bytes())?;
             Ok(())
         }

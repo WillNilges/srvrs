@@ -7,8 +7,29 @@ use tokio;
 use log::{error, info, warn, LevelFilter};
 use simple_logger::SimpleLogger;
 use users::{get_user_by_name, get_group_by_name};
+use lazy_static::lazy_static;
 
 pub mod activity;
+
+/*use std::{io::Read, fs, os::unix::fs::{PermissionsExt, chown}};
+use users::{get_user_by_name, get_group_by_name};*/
+
+lazy_static! {
+    static ref MEMBERS_GID: u32 = match get_group_by_name("member") {
+        Some(group) => group.gid(),
+        _ => panic!("Group not found >:("),
+    };
+
+    static ref SRVRS_UID: u32 = match get_user_by_name("srvrs") {
+        Some(user) => user.uid(),
+        _ => panic!("User not found"),
+    };
+
+    static ref SRVRS_GID: u32 = match get_group_by_name("srvrs") {
+        Some(group) => group.gid(),
+        _ => panic!("Group not found"),
+    };
+}
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -73,15 +94,15 @@ async fn main() {
                 info!("Creating directory: {}", &dir);
                 fs::create_dir_all(&dir).unwrap();
                 fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).unwrap();
-                chown(dir, Some(srvrs_uid), Some(srvrs_gid)).unwrap();
+                chown(dir, Some(*SRVRS_UID), Some(*SRVRS_GID)).unwrap();
             }
 
             // Create status and queue directories
             for dir in vec![&status_dir, &queue_dir] {
                 info!("Creating directory: {}", &dir);
                 fs::create_dir_all(&dir).unwrap();
-                fs::set_permissions(&dir, fs::Permissions::from_mode(0o744)).unwrap();
-                chown(dir, Some(srvrs_uid), Some(members_gid)).unwrap();
+                fs::set_permissions(&dir, fs::Permissions::from_mode(0o755)).unwrap();
+                chown(dir, Some(*SRVRS_UID), Some(*MEMBERS_GID)).unwrap();
             }
 
             // Create work directory for each activity

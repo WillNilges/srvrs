@@ -938,6 +938,7 @@ dependencies = [
  "clap",
  "file-owner",
  "infer",
+ "lazy_static",
  "log",
  "notify",
  "regex",
