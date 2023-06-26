@@ -89,6 +89,8 @@ impl Activity {
     fn update_status(&self, status: String) {
         fn write_status(path: &str, status: String) -> Result<()> {
             let mut sf = fs::File::create(path)?;
+            fs::set_permissions(&sf, fs::Permissions::from_mode(0o744)).unwrap();
+            chown(sf, Some(srvrs_uid), Some(members_gid)).unwrap();
             sf.write_all(status.as_bytes())?;
             Ok(())
         }

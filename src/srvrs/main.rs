@@ -1,9 +1,8 @@
 #![feature(path_file_prefix)]
 #![feature(unix_chown)]
 use clap::{Args, Parser, Subcommand};
-use std::{io::Read, fs, os::unix::fs::chown};
+use std::{io::Read, fs, os::unix::fs::{PermissionsExt, chown}};
 use serde_yaml;
-use std::os::unix::fs::PermissionsExt;
 use tokio;
 use log::{error, info, warn, LevelFilter};
 use simple_logger::SimpleLogger;
@@ -81,8 +80,7 @@ async fn main() {
             for dir in vec![&status_dir, &queue_dir] {
                 info!("Creating directory: {}", &dir);
                 fs::create_dir_all(&dir).unwrap();
-                fs::set_permissions(&dir, fs::Permissions::from_mode(0o740)).unwrap();
-
+                fs::set_permissions(&dir, fs::Permissions::from_mode(0o744)).unwrap();
                 chown(dir, Some(srvrs_uid), Some(members_gid)).unwrap();
             }
 
@@ -147,20 +145,20 @@ async fn main() {
             }
         }
         Action::Status => {
-            unimplemented!();
-            /*
-            let file = fs::File::open("/var/srvrs/status");
-            match file {
-                Ok(mut f) => {
-                    let mut contents = String::new();
-                    f.read_to_string(&mut contents).unwrap();
-                    println!("{}", contents);
-                },
-                Err(e) => {
-                    println!("No Status: {}", e);
+            let stat_dir = fs::read_dir("/var/srvrs/status").unwrap();
+            for stat in stat_dir {
+                let stat_file = fs::File::open(stat.unwrap().path());
+                match stat_file {
+                    Ok(mut f) => {
+                        let mut contents = String::new();
+                        f.read_to_string(&mut contents).unwrap();
+                        println!("{}", contents);
+                    },
+                    Err(e) => {
+                        println!("No Status: {}", e);
+                    }
                 }
             }
-            */
         }
         Action::Services => {
             unimplemented!();
