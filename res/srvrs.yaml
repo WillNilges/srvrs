@@ -11,4 +11,4 @@ activities:
       script: 'sd.sh'
       wants:
         - Text
-      progress_regex: '(sd2 iterations complete: [0-9] of [0-9])\w+'
+      progress_regex: '(sd2 iteration progress: \d+ of \d+)\w+'
