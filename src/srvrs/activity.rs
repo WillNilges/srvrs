@@ -69,18 +69,27 @@ where
         .collect()
 }
 
+#[derive(Debug)]
+enum StatusSummary {
+    IDLE,
+    STARTING,
+    RUNNING,
+    CLEANUP,
+    ERROR,
+}
+
 impl Activity {
 
     // Setup the service and watch the requisite directories
     pub async fn launch(&self) {
         // TODO: Parse script and make sure it's formatted correctly?
-
         info!(
             "Watching {}. Will run `{}` when a file is added.",
             self.name, self.script
         );
         self.update_status(
-            format!("Idle. Upload a file to {} to get started.", self.watch_dir)
+            StatusSummary::IDLE,
+            "".to_string()
         );
         if let Err(e) = self.watch() {
             error!("error: {:?}", e);
@@ -88,16 +97,22 @@ impl Activity {
     }
 
     // Write a string to a file, presumably, the string is output from a script.
-    fn update_status(&self, status: String) {
-        fn write_status(path: &str, status: String) -> Result<()> {
+    fn update_status(&self, summary: StatusSummary, status: String) {
+        fn write_status(path: &str, name: &str, summary: StatusSummary, status: String) -> Result<()> {
             let mut sf = fs::File::create(path)?;
-            fs::set_permissions(path, fs::Permissions::from_mode(0o644)).unwrap();
-            chown(path, Some(*SRVRS_UID), Some(*MEMBERS_GID)).unwrap();
-            sf.write_all(status.as_bytes())?;
+            fs::set_permissions(path, fs::Permissions::from_mode(0o644))?;
+            chown(path, Some(*SRVRS_UID), Some(*MEMBERS_GID))?;
+            let status_update: String = format!(
+                "{} - {:#?}:\n{}\n",
+                name,
+                summary,
+                status
+            );
+            sf.write_all(status_update.as_bytes())?;
             Ok(())
         }
 
-        write_status(&self.status_path, status)
+        write_status(&self.status_path, &self.name, summary, status)
             .unwrap_or_else(|_|error!("Could not update status"));
     }
 
@@ -106,6 +121,8 @@ impl Activity {
             let paths = fs::read_dir(watch_dir).unwrap();
 
             let mut qf = fs::File::create(queue_path)?;
+            fs::set_permissions(queue_path, fs::Permissions::from_mode(0o644))?;
+            chown(queue_path, Some(*SRVRS_UID), Some(*MEMBERS_GID))?;
             let mut queue_files = String::from("");
             for path in paths {
                 queue_files.push_str(
@@ -142,12 +159,10 @@ impl Activity {
                         Ok(re)  => {
                             for caps in re.captures_iter(&l) {
                                 //info!("Regex Matched: {}", l);
+                                // https://docs.rs/regex/latest/regex/struct.Regex.html#method.captures
                                 self.update_status(
-                                    // https://docs.rs/regex/latest/regex/struct.Regex.html#method.captures
-                                    format!(
-                                        "{}: Running...\n{}\n", 
-                                        self.name, caps.get(0).unwrap().as_str()
-                                    )
+                                    StatusSummary::RUNNING,
+                                    caps.get(0).unwrap().as_str().to_string()
                                 );
                             }
                         },
@@ -189,10 +204,8 @@ impl Activity {
                             match self.respond(&event.paths) {
                                 Ok(()) => {
                                         self.update_status(
-                                            format!(
-                                                "Idle. Upload a file to {} to get started.",
-                                                self.watch_dir
-                                            )
+                                            StatusSummary::IDLE,
+                                            "".to_string()
                                         );
                                     }
                                 Err(e) => {
@@ -202,6 +215,7 @@ impl Activity {
                                     warn!("Deleting {}", &condemned_path);
                                     fs::remove_file(condemned_path)?;
                                     self.update_status(
+                                        StatusSummary::ERROR,
                                         format!("Error responding to file: {}", e)
                                     );
                                 }
@@ -268,14 +282,20 @@ impl Activity {
         fs::rename(file, &file_work_path)?;
 
         info!("Running command: {}", self.script.to_owned());
-        self.update_status("Launching command...".to_string());
+        self.update_status(
+            StatusSummary::STARTING,
+            "Launching command...".to_string()
+        );
 
         self.run_script(file_work_path)?;
 
         // When finished, move the work directory into the distributor directory
         // so that the distributor can send it to the user.
         info!("Moving to distributor");
-        self.update_status("Moving to distributor...".to_string());
+        self.update_status(
+            StatusSummary::CLEANUP,
+            "Moving to distributor...".to_string()
+        );
         fs::rename(file_work_dir, format!("{}/{}", self.distributor_dir, owner))?;
 
         Ok(())
