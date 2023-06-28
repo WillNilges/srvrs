@@ -141,11 +141,12 @@ impl Activity {
                     match sus_re {
                         Ok(re)  => {
                             for caps in re.captures_iter(&l) {
-                                info!("Regex Matched: {}", l);
+                                //info!("Regex Matched: {}", l);
                                 self.update_status(
+                                    // https://docs.rs/regex/latest/regex/struct.Regex.html#method.captures
                                     format!(
-                                        "Running {}...\n{}", 
-                                        self.name, caps.get(1).unwrap().as_str()
+                                        "{}: Running...\n{}\n", 
+                                        self.name, caps.get(0).unwrap().as_str()
                                     )
                                 );
                             }

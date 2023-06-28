@@ -74,6 +74,7 @@ async fn main() {
             let work_dir = format!("{}/work", sc.base_dir);
             let distributor_dir = format!("{}/distributor", sc.base_dir);
 
+            /*
             let members_gid: u32 = match get_group_by_name("member") {
                 Some(group) => group.gid(),
                 _ => panic!("Group not found >:("),
@@ -87,7 +88,7 @@ async fn main() {
             let srvrs_gid: u32 = match get_group_by_name("srvrs") {
                 Some(group) => group.gid(),
                 _ => panic!("Group not found"),
-            };
+            };*/
 
             // Create base directories for srvrs
             for dir in vec![&scripts_dir, &work_dir, &distributor_dir] {
@@ -116,7 +117,7 @@ async fn main() {
                     Some(group) => group.gid(),
                     _ => panic!("Group not found >:("),
                 };
-                chown(activity_dir, Some(srvrs_uid), Some(members_gid)).unwrap();
+                chown(activity_dir, Some(*SRVRS_UID), Some(*MEMBERS_GID)).unwrap();
             }
 
             println!("Finished!");
