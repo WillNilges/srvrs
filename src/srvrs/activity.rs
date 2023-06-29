@@ -103,7 +103,7 @@ impl Activity {
             fs::set_permissions(path, fs::Permissions::from_mode(0o644))?;
             chown(path, Some(*SRVRS_UID), Some(*MEMBERS_GID))?;
             let status_update: String = format!(
-                "{} - {:#?}:\n{}\n",
+                "{} - {:#?}:\n{}",
                 name,
                 summary,
                 status
@@ -117,13 +117,13 @@ impl Activity {
     }
 
     fn update_queue(&self) {
-        fn write_queue(watch_dir: &str, queue_path: &str) -> Result<()> {
+        fn write_queue(name: &str, watch_dir: &str, queue_path: &str) -> Result<()> {
             let paths = fs::read_dir(watch_dir).unwrap();
 
             let mut qf = fs::File::create(queue_path)?;
             fs::set_permissions(queue_path, fs::Permissions::from_mode(0o644))?;
             chown(queue_path, Some(*SRVRS_UID), Some(*MEMBERS_GID))?;
-            let mut queue_files = String::from("");
+            let mut queue_files = String::from(format!("{}:\n", name));
             for path in paths {
                 queue_files.push_str(
                     format!("{}\n", path.unwrap().path().display()).as_str()
@@ -133,7 +133,7 @@ impl Activity {
             Ok(())
         }
 
-        write_queue(&self.watch_dir, &self.queue_path)
+        write_queue(&self.name, &self.watch_dir, &self.queue_path)
             .unwrap_or_else(|_| error!("Could not update queue"));
     }
 

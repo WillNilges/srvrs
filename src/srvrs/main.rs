@@ -8,6 +8,7 @@ use log::{error, info, warn, LevelFilter};
 use simple_logger::SimpleLogger;
 use users::{get_user_by_name, get_group_by_name};
 use lazy_static::lazy_static;
+use anyhow::Error;
 
 pub mod activity;
 
@@ -73,22 +74,6 @@ async fn main() {
             let queue_dir = format!("{}/queue", sc.base_dir);
             let work_dir = format!("{}/work", sc.base_dir);
             let distributor_dir = format!("{}/distributor", sc.base_dir);
-
-            /*
-            let members_gid: u32 = match get_group_by_name("member") {
-                Some(group) => group.gid(),
-                _ => panic!("Group not found >:("),
-            };
-
-            let srvrs_uid: u32 = match get_user_by_name("srvrs") {
-                Some(user) => user.uid(),
-                _ => panic!("User not found"),
-            };
-
-            let srvrs_gid: u32 = match get_group_by_name("srvrs") {
-                Some(group) => group.gid(),
-                _ => panic!("Group not found"),
-            };*/
 
             // Create base directories for srvrs
             for dir in vec![&scripts_dir, &work_dir, &distributor_dir] {
@@ -167,6 +152,7 @@ async fn main() {
             }
         }
         Action::Status => {
+            /*
             let stat_dir = fs::read_dir("/var/srvrs/status").unwrap();
             for stat in stat_dir {
                 let stat_file = fs::File::open(stat.unwrap().path());
@@ -180,7 +166,8 @@ async fn main() {
                         println!("No Status: {}", e);
                     }
                 }
-            }
+            }*/
+            print_for_users("/var/srvrs/status");
         }
         Action::Services => {
             unimplemented!();
@@ -190,20 +177,25 @@ async fn main() {
             */
         }
         Action::Queue => {
-            unimplemented!();
-            /*
-            let file = fs::File::open("/var/srvrs/queue");
-            match file {
-                Ok(mut f) => {
-                    let mut contents = String::new();
-                    f.read_to_string(&mut contents).unwrap();
-                    println!("{}", contents);
-                },
-                Err(e) => {
-                    println!("No Queue: {}", e);
-                }
-            }
-            */
+            print_for_users("/var/srvrs/queue");
         }
     }
+}
+
+fn print_for_users(dir_path: &str) -> Result<(), Error> {
+    let dir = fs::read_dir(dir_path)?;
+    for file in dir {
+        let file_handle = fs::File::open(file?.path());
+        match file_handle {
+            Ok(mut f) => {
+                let mut contents = String::new();
+                f.read_to_string(&mut contents)?;
+                println!("{}", contents);
+            },
+            Err(e) => {
+                error!("{}", e);
+            },
+        };
+    }
+    Ok(())
 }
