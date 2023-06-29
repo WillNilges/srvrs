@@ -12,9 +12,6 @@ use anyhow::Error;
 
 pub mod activity;
 
-/*use std::{io::Read, fs, os::unix::fs::{PermissionsExt, chown}};
-use users::{get_user_by_name, get_group_by_name};*/
-
 lazy_static! {
     static ref MEMBERS_GID: u32 = match get_group_by_name("member") {
         Some(group) => group.gid(),
@@ -152,21 +149,6 @@ async fn main() {
             }
         }
         Action::Status => {
-            /*
-            let stat_dir = fs::read_dir("/var/srvrs/status").unwrap();
-            for stat in stat_dir {
-                let stat_file = fs::File::open(stat.unwrap().path());
-                match stat_file {
-                    Ok(mut f) => {
-                        let mut contents = String::new();
-                        f.read_to_string(&mut contents).unwrap();
-                        println!("{}", contents);
-                    },
-                    Err(e) => {
-                        println!("No Status: {}", e);
-                    }
-                }
-            }*/
             print_for_users("/var/srvrs/status");
         }
         Action::Services => {
@@ -182,7 +164,7 @@ async fn main() {
     }
 }
 
-fn print_for_users(dir_path: &str) -> Result<(), Error> {
+fn print_for_users(dir_path: &str) {
     let dir = fs::read_dir(dir_path)?;
     for file in dir {
         let file_handle = fs::File::open(file?.path());
@@ -197,5 +179,4 @@ fn print_for_users(dir_path: &str) -> Result<(), Error> {
             },
         };
     }
-    Ok(())
 }
