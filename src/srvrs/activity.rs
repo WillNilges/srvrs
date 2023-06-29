@@ -114,6 +114,8 @@ impl Activity {
 
         write_status(&self.status_path, &self.name, summary, status)
             .unwrap_or_else(|_|error!("Could not update status"));
+
+        self.update_queue();
     }
 
     fn update_queue(&self) {
