@@ -13,6 +13,7 @@ use std::{
 };
 use serde::{de, Deserialize};
 use crate::{SRVRS_UID, SRVRS_GID, MEMBERS_GID};
+use crate::gpu::wait_for_gpu;
 
 #[derive(Deserialize, Debug)]
 pub struct SrvrsConfig {
@@ -141,10 +142,11 @@ impl Activity {
 
     // Run whatever script is attached to the activity and use a regex to try
     // capturing status updates
-    fn run_script(&self, input: String) -> Result<()> {
+    fn run_script(&self, input: String, gpus: String) -> Result<()> {
         let script = &self.script;
         let mut cmd = Command::new(script)
             .arg(&input)
+            .arg(&gpus)
             .stdout(Stdio::piped())
             .spawn()?;
 
@@ -155,7 +157,7 @@ impl Activity {
         for line in cmd_stdout_lines {
             match line {
                 Ok(l) => {
-                    info!("Script Log: {}", l);
+                    info!("{}", l);
                     let sus_re = Regex::new(&self.progress_regex);
                     match sus_re {
                         Ok(re)  => {
@@ -272,6 +274,10 @@ impl Activity {
             }
             info!("{} is a {:?}", &file, kind.matcher_type());
         }
+
+        // Wait for a GPU to be free
+        // TODO: The '1' is a placeholder for the field passed in through the command line
+        let gpus = wait_for_gpu(1)?;
         
         // Create temp work directory. We'll put the file here, then run the command we
         // were given on it.
@@ -289,7 +295,7 @@ impl Activity {
             "Launching command...".to_string()
         );
 
-        self.run_script(file_work_path)?;
+        self.run_script(file_work_path, gpus)?;
 
         // When finished, move the work directory into the distributor directory
         // so that the distributor can send it to the user.

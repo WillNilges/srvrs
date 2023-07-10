@@ -11,6 +11,7 @@ use lazy_static::lazy_static;
 use anyhow::Error;
 
 pub mod activity;
+pub mod gpu;
 
 lazy_static! {
     static ref MEMBERS_GID: u32 = match get_group_by_name("member") {
@@ -56,7 +57,7 @@ struct WatchArgs {
 async fn main() {
     let args = SubCommands::parse();
     SimpleLogger::new().init().unwrap();
-    log::set_max_level(LevelFilter::Info);
+    log::set_max_level(LevelFilter::Debug); // TODO: Configure this somehow?
             
     match args.subcommand {
         Action::Setup(watch_args) => {
@@ -164,7 +165,7 @@ async fn main() {
     }
 }
 
-fn print_for_users(dir_path: &str) {
+fn print_for_users(dir_path: &str) -> Result<(), Error> {
     let dir = fs::read_dir(dir_path)?;
     for file in dir {
         let file_handle = fs::File::open(file?.path());
@@ -179,4 +180,5 @@ fn print_for_users(dir_path: &str) {
             },
         };
     }
+    Ok(())
 }
