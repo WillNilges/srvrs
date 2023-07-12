@@ -1,6 +1,4 @@
 use nvml_wrapper::{Nvml,error::NvmlError};
-use users::get_user_by_uid;
-use sysinfo::{Pid, ProcessExt, System, SystemExt, Signal};
 use lazy_static::lazy_static;
 use anyhow::{anyhow, Error};
 use std::{thread::sleep, time};
@@ -51,18 +49,18 @@ fn get_free_devices() -> Result<Vec<usize>, NvmlError>{
     Ok(free_devices)
 }
 
-pub fn wait_for_gpu(requesting: usize) -> Result<String, Error> {
+pub fn wait_for_device(requesting: usize) -> Result<String, Error> {
     let mut timeout_sec = 3600;
     let wait_sec = 2;
     while timeout_sec > 0 {
-        let free_gpus = get_free_devices()?;
-        // If we have enough free GPUs, return the first two
+        let free_devices = get_free_devices()?;
+        // If we have enough free GPUs, return the first <requesting> GPUs
         // (this does not account for the GPUs' capabilities.)
-        if free_gpus.len() >= requesting {
-            let gpu_string: String = free_gpus[0..requesting].iter().format(",").to_string();
+        if free_devices.len() >= requesting {
+            let device_string: String = free_devices[0..requesting].iter().format(",").to_string();
 
-            info!("GPU(s) found! ({})", gpu_string);
-            return Ok(gpu_string);
+            info!("GPU(s) found! ({})", device_string);
+            return Ok(device_string);
         }
         info!("Not enough GPUs available. Waiting... ({}s left)", timeout_sec);
         sleep(time::Duration::from_secs(wait_sec));

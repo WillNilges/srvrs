@@ -96,10 +96,6 @@ async fn main() {
                 fs::create_dir_all(&activity_dir).unwrap();
                 fs::set_permissions(&activity_dir, fs::Permissions::from_mode(0o730)).unwrap();
 
-                let members_gid: u32 = match get_group_by_name("member") {
-                    Some(group) => group.gid(),
-                    _ => panic!("Group not found >:("),
-                };
                 chown(activity_dir, Some(*SRVRS_UID), Some(*MEMBERS_GID)).unwrap();
             }
 

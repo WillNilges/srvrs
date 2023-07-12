@@ -12,8 +12,8 @@ use std::{
     os::unix::fs::{chown, PermissionsExt},
 };
 use serde::{de, Deserialize};
-use crate::{SRVRS_UID, SRVRS_GID, MEMBERS_GID};
-use crate::gpu::wait_for_gpu;
+use crate::{SRVRS_UID, MEMBERS_GID};
+use crate::gpu::wait_for_device;
 
 #[derive(Deserialize, Debug)]
 pub struct SrvrsConfig {
@@ -277,7 +277,7 @@ impl Activity {
 
         // Wait for a GPU to be free
         // TODO: The '1' is a placeholder for the field passed in through the command line
-        let gpus = wait_for_gpu(1)?;
+        let gpus = wait_for_device(1)?;
         
         // Create temp work directory. We'll put the file here, then run the command we
         // were given on it.
