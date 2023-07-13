@@ -28,6 +28,7 @@ pub struct ActivityConfig {
     pub script: String, // Path to script this will run 
     #[serde(deserialize_with = "wants_deserializer")]
     pub wants: Vec<infer::MatcherType>, // The kinds of file the script accepts
+    pub gpus: usize, // The amount of GPUs that the service wants
     pub progress_regex: String, // Regex for caputring status from output
 }
 
@@ -35,6 +36,7 @@ pub struct Activity {
     pub name: String, // The name of this activity 
     pub script: String, // Path to script this will run 
     pub wants: Vec<infer::MatcherType>, // The kinds of file the script accepts
+    pub gpus: usize, // The amount of GPUs that the service wants
     pub progress_regex: String, // Regex for caputring status from output
     pub watch_dir: String, // The dir this Activity will watch for work
     pub status_path: String, // The file this Activity will report status 
@@ -47,7 +49,6 @@ fn wants_deserializer<'de, D>(deserializer: D) -> Result<Vec<infer::MatcherType>
 where
   D: de::Deserializer<'de>,
 {
-
     let string_types: Vec<&str> = Deserialize::deserialize(deserializer)?;
     string_types
         .into_iter()
@@ -80,7 +81,6 @@ enum StatusSummary {
 }
 
 impl Activity {
-
     // Setup the service and watch the requisite directories
     pub async fn launch(&self) {
         // TODO: Parse script and make sure it's formatted correctly?
@@ -276,8 +276,7 @@ impl Activity {
         }
 
         // Wait for a GPU to be free
-        // TODO: The '1' is a placeholder for the field passed in through the command line
-        let gpus = wait_for_device(1)?;
+        let gpus = wait_for_device(self.gpus)?;
         
         // Create temp work directory. We'll put the file here, then run the command we
         // were given on it.

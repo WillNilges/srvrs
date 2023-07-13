@@ -4,7 +4,7 @@ use clap::{Args, Parser, Subcommand};
 use std::{io::Read, fs, os::unix::fs::{PermissionsExt, chown}};
 use serde_yaml;
 use tokio;
-use log::{error, info, warn, LevelFilter};
+use log::{error, info, LevelFilter};
 use simple_logger::SimpleLogger;
 use users::{get_user_by_name, get_group_by_name};
 use lazy_static::lazy_static;
@@ -120,6 +120,7 @@ async fn main() {
                     name: name.clone(),
                     script: format!("{}/{}", scripts_dir, ac.script),
                     wants: ac.wants.clone(),
+                    gpus: ac.gpus,
                     progress_regex: ac.progress_regex.clone(),
                     watch_dir: format!("{}/{}", sc.base_dir, name),
                     status_path: format!("{}/{}", status_dir, name),

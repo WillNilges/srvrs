@@ -2,11 +2,11 @@ use nvml_wrapper::{Nvml,error::NvmlError};
 use lazy_static::lazy_static;
 use anyhow::{anyhow, Error};
 use std::{thread::sleep, time};
-use log::{debug, info, warn, error, LevelFilter};
+use log::{info};
 use itertools::Itertools; // Dependencies are like microplastics. I love microplastics.
 
 /*
-* TODO: Implement this
+TODO: Implement this
 use lazy_static::lazy_static;
 use std::sync::{RwLock, Mutex};
 
@@ -28,7 +28,7 @@ fn main() {
     CHOM.write().unwrap().foo();
     CHOM.read().unwrap().bar();
 }
-* */
+*/
 
 lazy_static! {
     static ref NVML: Nvml = Nvml::init().unwrap();
