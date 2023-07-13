@@ -12,7 +12,13 @@ SCRIPTS="$BASE/scripts"
 
 cargo build --release
 
-# sudo useradd $APP | echo "User already added" # We're doing the user through SSSDeez now, because you can't pull SIDs for local users and network users at the same time. GAH!
+# We're doing the user through SSSDeez now, because you can't pull SIDs for local users and network users at the same time. GAH!
+if id "$USER" &>/dev/null; then
+    echo "$USER found"
+else
+    echo "$USER not found"
+    sudo useradd $USER
+fi
 
 sudo rm -rf $BASE
 sudo mkdir -p $BASE $SCRIPTS
